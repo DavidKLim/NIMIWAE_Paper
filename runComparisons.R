@@ -1,5 +1,7 @@
 library(reticulate)
 library(NIMIWAE)
+source_python("otherMethods.py")
+
 runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_cols=NULL, ref_cols=NULL, scheme="UV",
                           sim_params=list(N=1e5, D=1, P=2, seed = NULL),
                           dataset=c("Physionet_mean","Physionet_all","HEPMASS","POWER","GAS","IRIS","RED","WHITE","YEAST","BREAST","CONCRETE","BANKNOTE",
@@ -360,7 +362,13 @@ for(a in 1:length(mechanisms)){
   runComparisons(dataset="SIM", sim_params=list(N=1e5, D=1, P=2, seed=NULL), save.dir="./Results", save.folder="SIM1", mechanism=mechanisms[a])
 }
 
-# Main simulations (P=8, 5 sims, vary miss_pct)
+# Main simulations (P=100, 5 sims)
+sim_indexes=1:5; miss_pcts = 25
+for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){
+  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=100, seed=NULL), save.dir="./Results",save.folder="SIM2", mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c])
+}}}
+
+# Supplementary simulations (P=8, 5 sims, vary miss_pct)
 sim_indexes=1:5; miss_pcts = c(15,25,35)
 for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){
   runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=8, seed=NULL), save.dir="./Results",save.folder="SIM2", mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c])
@@ -375,6 +383,7 @@ datasets=c("HEPMASS","POWER") # large datasets: runs into memory issues with mis
 for(a in 1:length(mechanisms)){for(d in 1:length(datasets)){
   runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a], run_methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN"))
 }}
+#### NEED TO INCLUDE IGNORABLE RUN IN PARENTHESES ####
 
 # Physionet analysis
 runComparisons(dataset="Physionet_mean", save.dir="./Results",mechanism="MNAR")  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR

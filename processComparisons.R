@@ -32,9 +32,9 @@ output_file.name=function(dir_name,method=c("NIMIWAE","MIWAE","HIVAE","VAEAC","M
   return(file.name)
 }
 
-processComparisons=function(dir_name="Results/TOYZ/phi5",mechanisms=c("MCAR","MAR","MNAR"),miss_pct=c(15,25,35),
+processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MAR","MNAR"),miss_pct=c(15,25,35),
                             methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
-                            imputation_metric=c("MSE","NRMSE","L1","L2"), betaVAE=NULL, arch=NULL, rdeponz=NULL){
+                            imputation_metric=c("MSE","NRMSE","L1","L2"), betaVAE=NULL, arch=NULL, rdeponz=NULL, outfile=NULL){
   library(ggplot2)
   library(grid)
   library(gridExtra)
@@ -100,8 +100,9 @@ processComparisons=function(dir_name="Results/TOYZ/phi5",mechanisms=c("MCAR","MA
     # scale_color_manual(breaks=methods[order(methods)],
     #                    values=colors[1:length(methods)])+scale_fill_manual(values=colors[1:length(methods)])
 
-
-    png(sprintf("%s/%s_competing_miss%d.png",dir_name,imputation_metric,miss_pct[ii]),width=1200,height=500)
+    if(is.null(outfile)){
+      png(sprintf("%s/%s_competing_miss%d.png",dir_name,imputation_metric,miss_pct[ii]),width=1200,height=500)
+    } else{ png(outfile, width=1200, height=500)}
     #barplot(mat_res[rownames(mat_res)=="NRMSE",])
     print(p)
     dev.off()
@@ -114,18 +115,19 @@ processComparisons=function(dir_name="Results/TOYZ/phi5",mechanisms=c("MCAR","MA
   return(list(res=mats_res, params=mats_params))
 }
 
-saveFigures = function(datasets=c("SIM1","SIM2"), sim_index=1:5,
-                       mechanisms=c("MCAR","MAR","MNAR"), miss_pcts=c(15,25,35), methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),test_dir=""){
+saveFigures = function(datasets=c("SIM1","SIM2","SIM3"), sim_index=1:5, phi0=5,
+                       mechanisms=c("MCAR","MAR","MNAR"), miss_pcts=c(15,25,35), methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),test_dir="",
+                       outfile=NULL){
   list_res=list(); index=1
   for(s in 1:length(sim_index)){
     for(d in 1:length(datasets)){
       dataset=datasets[d]
-      dir_name=sprintf("Results/%s/phi5/sim%d%s",dataset,sim_index[s],test_dir)
-      data_dir_name=sprintf("Results/%s/phi5/sim%d",dataset,sim_index[s])
+      dir_name=sprintf("Results/%s/phi%d/sim%d%s",dataset,phi0,sim_index[s],test_dir)
+      data_dir_name=sprintf("Results/%s/phi%d/sim%d",dataset,phi0,sim_index[s])
       imputation_metrics=c("MSE","L1","L2","NRMSE","RMSE")
       for(i in 1:length(imputation_metrics)){
-        res = plot_diagnostics_others(dir_name,data_dir_name,mechanisms,miss_pcts,methods,imputation_metrics[i],
-                                      betaVAE=F, arch="IWAE", rdeponz=F)
+        res = processComparisons(dir_name,data_dir_name,mechanisms,miss_pcts,methods,imputation_metrics[i],
+                                      betaVAE=F, arch="IWAE", rdeponz=F, outfile=outfile)
         list_res[[index]] = res
         index = index+1
       }
