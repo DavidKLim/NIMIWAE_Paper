@@ -24,7 +24,7 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
   #### REPLACE WITH simulate_data(), read_data() and simulate_missing()
   if(!file.exists(sprintf("%s.RData",fname_data))){
     print("Preparing data")
-    if(dataset=="SIM"){ fit_data = NIMIWAE::simulate_data( sim_params$N, sim_params$D, sim_params$P, sim_index, seed = 9*sim_index, ratio=c(6,2,2) )
+    if(dataset=="SIM"){ fit_data = NIMIWAE::simulate_data( sim_params$N, sim_params$D, sim_params$P, sim_index, seed = 9*sim_index, ratio=c(6,2,2) ); data=fit_data$data; classes=fit_data$classes
     } else{ fit_data = NIMIWAE::read_data( dataset=dataset, ratio=c(6,2,2) ); data=fit_data$data; classes=fit_data$classes }
     n=nrow(data); p=ncol(data)
 
@@ -142,11 +142,11 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     print(fname0)
     if(!file.exists(fname0)){
       t0=Sys.time()
-      res_NIMIWAE = tuneHyperparams(method="NIMIWAE",data=data,Missing=Missing,g=g,
+      res_NIMIWAE = NIMIWAE::tuneHyperparams(method="NIMIWAE",data=data,Missing=Missing,g=g,
                                     rdeponz=rdeponz, learn_r=learn_r,
                                     phi0=phi0,phi=phi,
-                                    covars_r=covars_r, dec_distrib=dec_distrib,
-                                    arch=arch, betaVAE=betaVAE, ignorable=ignorable)
+                                    covars_r=covars_r,
+                                    arch=arch, ignorable=ignorable)
 
       res_NIMIWAE$time = as.numeric(Sys.time()-t0,units="secs")
       print(paste("Time elapsed: ", res_NIMIWAE$time, "s."))
