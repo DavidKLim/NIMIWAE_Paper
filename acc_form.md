@@ -1,7 +1,7 @@
 NIMIWAE\_Paper
 ================
 David Lim
-23 December, 2020
+28 December, 2020
 
 <!--HOW TO COMPLETE THIS FORM:-->
 
@@ -118,10 +118,11 @@ Provide a short (< 100 words), high-level description of the code. If necessary,
 -->
 
 Reproduces training of models and summarization of results in the paper
-“Handling Non-Ignorably Missing Data Using Importance-Weighted
-Autoencoders.” We show superiority of NIMIWAE in imputation of simulated
-missing values, and perform comparative analyses on the Physionet 2012
-Challenge EHR Dataset, showing improvements in imputed missing entries.
+“Handling Non-ignorably Missing Features in Electronic Health Records
+Data Using Importance-Weighted Autoencoders.” We show superiority of
+NIMIWAE in imputation of simulated missing values, and perform
+comparative analyses on the Physionet 2012 Challenge EHR Dataset,
+showing improvements in imputed missing entries.
 
 ## Description
 

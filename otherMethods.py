@@ -505,9 +505,11 @@ def run_VAEAC(data,one_hot_max_sizes,norm_mean,norm_std,h,n_hidden_layers,dim_z,
   import os
   
   #from datasets import compute_normalization    # did it manually in R --> fed in
-  from otherMethods.vaeac.imputation_networks import get_imputation_networks
-  from otherMethods.vaeac.train_utils import extend_batch, get_validation_iwae
-  from otherMethods.vaeac.VAEAC import VAEAC
+  os.chdir("otherMethods/vaeac")
+  from imputation_networks import get_imputation_networks
+  from train_utils import extend_batch, get_validation_iwae
+  from VAEAC import VAEAC
+  os.chdir("../..")
   import time
   
   import warnings

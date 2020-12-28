@@ -118,6 +118,8 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
   # Imputation metrics based on imputed test set only
   # Skips method if it isn't included in "run_methods"
 
+  diag_dir_name = sprintf("%s/Diagnostics",dir_name)
+  ifelse(!dir.exists(diag_dir_name),dir.create(diag_dir_name),FALSE)
   #### NIMIWAE ####
   print("NIMIWAE")
   if("NIMIWAE" %in% run_methods){
@@ -136,13 +138,14 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     # }
     dir_name2=sprintf("%s",dir_name)
     ifelse(!dir.exists(dir_name2),dir.create(dir_name2),FALSE)
+
     yesbeta=if(betaVAE){"beta"}else{""}; yesrz = if(rdeponz){"T"}else{"F"}
     fname0=sprintf("%s/res_NIMIWAE_%s_%d_%s%s_rz%s.RData",dir_name2,mechanism,miss_pct,yesbeta,arch,yesrz)
 
     print(fname0)
     if(!file.exists(fname0)){
       t0=Sys.time()
-      res_NIMIWAE = NIMIWAE::tuneHyperparams(method="NIMIWAE",data=data,Missing=Missing,g=g,
+      res_NIMIWAE = NIMIWAE::tuneHyperparams(dataset=dataset,method="NIMIWAE",data=data,Missing=Missing,g=g,
                                     rdeponz=rdeponz, learn_r=learn_r,
                                     phi0=phi0,phi=phi,
                                     covars_r=covars_r,
@@ -154,15 +157,15 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     }else{
       load(sprintf("%s",fname0))   # if results already exist, load to plot diagnostic plots
     }
-    # Diagnostic plots of results (imputed vs truth)
-    for(c in miss_cols){
-      png(sprintf("%s/%s_col%d_NIMIWAE_%s%s_rz%s.png",diag_dir_name,mechanism,c,yesbeta,archs[aa],yesrz))
-      overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
-                    x2=res_NIMIWAE$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
-                    x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
-                    title=sprintf("NIMIWAE Column%d: True vs Imputed missing and observed values",c))
-      dev.off()
-    }
+    ## Diagnostic plots of results (imputed vs truth)
+    # for(c in miss_cols){
+    #   png(sprintf("%s/%s_col%d_NIMIWAE_%s%s_rz%s.png",diag_dir_name,mechanism,c,yesbeta,arch,yesrz))
+    #   overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
+    #                 x2=res_NIMIWAE$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
+    #                 x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
+    #                 title=sprintf("NIMIWAE Column%d: True vs Imputed missing and observed values",c))
+    #   dev.off()
+    # }
 
     rm("res_NIMIWAE")  # if running multiple methods, save memory by saving results and removing from environment
   }
@@ -177,23 +180,23 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     print(fname0)
     if(!file.exists(fname0)){
       t0=Sys.time()
-      res_MIWAE = tuneHyperparams(method="MIWAE",data=data,Missing=Missing,g=g,
+      res_MIWAE = tuneHyperparams(FUN=run_MIWAE,dataset=dataset,method="MIWAE",data=data,Missing=Missing,g=g,
                                   rdeponz=rdeponz, learn_r=learn_r,
                                   phi0=phi0,phi=phi,
-                                  covars_r=covars_r, dec_distrib=dec_distrib)
+                                  covars_r=covars_r)
       res_MIWAE$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_MIWAE,file=sprintf("%s",fname0))
       #rm("res_MIWAE")
     }else{
-      load(fname0)
-      for(c in miss_cols){
-        png(sprintf("%s/%s_col%d_MIWAE.png",diag_dir_name,mechanism,c))
-        overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
-                      x2=res_MIWAE$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
-                      x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
-                      title=sprintf("MIWAE Column%d: True vs Imputed missing and observed values",c))
-        dev.off()
-      }
+      # load(fname0)
+      # for(c in miss_cols){
+      #   png(sprintf("%s/%s_col%d_MIWAE.png",diag_dir_name,mechanism,c))
+      #   overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
+      #                 x2=res_MIWAE$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
+      #                 x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
+      #                 title=sprintf("MIWAE Column%d: True vs Imputed missing and observed values",c))
+      #   dev.off()
+      # }
     }
     rm("res_MIWAE")
   }
@@ -232,7 +235,7 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
   MissingData[Missing==0]=NaN
 
   MissingDatas = split(data.frame(MissingData),g)
-  source_python("comparisons_missing.py")
+  # source_python("comparisons_missing.py")
 
   ### HIVAE ###
   print("HIVAE")
@@ -243,21 +246,21 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     print(fname0)
     if(!file.exists(fname0)){
       t0=Sys.time()
-      res_HIVAE = tuneHyperparams(method="HIVAE",data=data,Missing=Missing,g=g,
+      res_HIVAE = tuneHyperparams(FUN=run_HIVAE,dataset=dataset,method="HIVAE",data=data,Missing=Missing,g=g,
                                   data_types=data_types)
       res_HIVAE$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_HIVAE,file=sprintf("%s",fname0))
       #rm("res_HIVAE")
     }else{
-      load(fname0)
-      for(c in miss_cols){
-        png(sprintf("%s/%s_col%d_HIVAE.png",diag_dir_name,mechanism,c))
-        overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
-                      x2=res_HIVAE$data_reconstructed[Missings$test[,c]==0,c],lab2="Imputed (missing)",
-                      x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
-                      title=sprintf("HIVAE Column%d: True vs Imputed missing and observed values",c))
-        dev.off()
-      }
+      # load(fname0)
+      # for(c in miss_cols){
+      #   png(sprintf("%s/%s_col%d_HIVAE.png",diag_dir_name,mechanism,c))
+      #   overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
+      #                 x2=res_HIVAE$data_reconstructed[Missings$test[,c]==0,c],lab2="Imputed (missing)",
+      #                 x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
+      #                 title=sprintf("HIVAE Column%d: True vs Imputed missing and observed values",c))
+      #   dev.off()
+      # }
     }
     rm("res_HIVAE")
   }
@@ -272,27 +275,27 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     # n_hidden_layers = if(dataset%in% c("TOYZ","TOYZ2","BANKNOTE","IRIS","WINE","BREAST","YEAST","CONCRETE","SPAM","ADULT","GAS","POWER")){10L} # default
     if(!file.exists(fname0)){
       t0=Sys.time()
-      res_VAEAC = tuneHyperparams(method="VAEAC",data=data,Missing=Missing,g=g,
+      res_VAEAC = tuneHyperparams(FUN=run_VAEAC,dataset=dataset,method="VAEAC",data=data,Missing=Missing,g=g,
                                   one_hot_max_sizes=one_hot_max_sizes, MissingDatas=MissingDatas)
       res_VAEAC$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_VAEAC,file=sprintf("%s",fname0))
       #rm("res_VAEAC")
     }else{
-      load(fname0)
-      xhat_all = res_VAEAC$result    # this method reverses normalization intrinsically
-      # average imputations
-      xhat = matrix(nrow=nrow(datas$test),ncol=ncol(datas$test))
-      n_imputations = res_VAEAC$train_params$n_imputations
-      for(i in 1:nrow(datas$test)){ xhat[i,]=colMeans(xhat_all[((i-1)*n_imputations+1):(i*n_imputations),]) }
-
-      for(c in miss_cols){
-        png(sprintf("%s/%s_col%d_VAEAC.png",diag_dir_name,mechanism,c))
-        overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
-                      x2=xhat[Missings$test[,c]==0,c],lab2="Imputed (missing)",
-                      x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
-                      title=sprintf("VAEAC Column%d: True vs Imputed missing and observed values",c))
-        dev.off()
-      }
+      # load(fname0)
+      # xhat_all = res_VAEAC$result    # this method reverses normalization intrinsically
+      # # average imputations
+      # xhat = matrix(nrow=nrow(datas$test),ncol=ncol(datas$test))
+      # n_imputations = res_VAEAC$train_params$n_imputations
+      # for(i in 1:nrow(datas$test)){ xhat[i,]=colMeans(xhat_all[((i-1)*n_imputations+1):(i*n_imputations),]) }
+      #
+      # for(c in miss_cols){
+      #   png(sprintf("%s/%s_col%d_VAEAC.png",diag_dir_name,mechanism,c))
+      #   overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
+      #                 x2=xhat[Missings$test[,c]==0,c],lab2="Imputed (missing)",
+      #                 x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
+      #                 title=sprintf("VAEAC Column%d: True vs Imputed missing and observed values",c))
+      #   dev.off()
+      # }
     }
     rm("res_VAEAC")
   }
@@ -306,21 +309,21 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     print(fname0)
     if(!file.exists(fname0)){
       t0=Sys.time()
-      res_MF = tuneHyperparams(method="MF",data=data,Missing=Missing,g=g)
+      res_MF = tuneHyperparams(FUN=run_missForest,dataset=dataset,method="MF",data=data,Missing=Missing,g=g)
       res_MF$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_MF,file=sprintf("%s",fname0))
       #rm("res_MF")
     }else{
-      load(fname0)
-      if(is.null(res_MF$xhat_rev)){res_MF$xhat_rev = reverse_norm_MIWAE(res_MF$xhat_mf,norm_means,norm_sds)}
-      for(c in miss_cols){
-        png(sprintf("%s/%s_col%d_MF.png",diag_dir_name,mechanism,c))
-        overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing",
-                      x2=res_MF$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
-                      x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
-                      title=sprintf("MF Column%d: True vs Imputed missing and observed values",c))
-        dev.off()
-      }
+      # load(fname0)
+      # if(is.null(res_MF$xhat_rev)){res_MF$xhat_rev = reverse_norm_MIWAE(res_MF$xhat_mf,norm_means,norm_sds)}
+      # for(c in miss_cols){
+      #   png(sprintf("%s/%s_col%d_MF.png",diag_dir_name,mechanism,c))
+      #   overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing",
+      #                 x2=res_MF$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
+      #                 x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
+      #                 title=sprintf("MF Column%d: True vs Imputed missing and observed values",c))
+      #   dev.off()
+      # }
     }
     rm("res_MF")
   }
@@ -334,44 +337,45 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     print(fname0)
     if(!file.exists(fname0)){
       t0=Sys.time()
-      res_MEAN = tuneHyperparams(method="MEAN",data=data,Missing=Missing,g=g)
+      res_MEAN = tuneHyperparams(FUN=run_meanImputation,dataset=dataset,method="MEAN",data=data,Missing=Missing,g=g)
       res_MEAN$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_MEAN,file=sprintf("%s",fname0))
       #rm("res_MEAN")
     }else{
-      load(fname0)
-      if(is.null(res_MEAN$xhat_rev)){res_MEAN$xhat_rev = reverse_norm_MIWAE(res_MEAN$xhat_mean,norm_means,norm_sds)}
-      for(c in miss_cols){
-        png(sprintf("%s/%s_col%d_MEAN.png",diag_dir_name,mechanism,c))
-        overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
-                      x2=res_MEAN$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
-                      x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
-                      title=sprintf("MEAN Column%d: True vs Imputed missing and observed values",c))
-        dev.off()
-      }
+      # load(fname0)
+      # if(is.null(res_MEAN$xhat_rev)){res_MEAN$xhat_rev = reverse_norm_MIWAE(res_MEAN$xhat_mean,norm_means,norm_sds)}
+      # for(c in miss_cols){
+      #   png(sprintf("%s/%s_col%d_MEAN.png",diag_dir_name,mechanism,c))
+      #   overlap_hists(x1=datas$test[Missings$test[,c]==0,c],lab1="Truth (missing)",
+      #                 x2=res_MEAN$xhat_rev[Missings$test[,c]==0,c],lab2="Imputed (missing)",
+      #                 x3=datas$test[Missings$test[,c]==1,c],lab3="Truth (observed)",
+      #                 title=sprintf("MEAN Column%d: True vs Imputed missing and observed values",c))
+      #   dev.off()
+      # }
     }
     rm("res_MEAN")
   }
 }
 
 ifelse(!dir.exists("./Results"), dir.create("./Results",recursive=T), F)
+mechanisms=c("MCAR","MAR","MNAR")
 
 # Proof of Concept (fixed miss_pct)
-mechanisms=c("MCAR","MAR","MNAR")
-for(a in 1:length(mechanisms)){
-  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=1, P=2, seed=NULL), save.dir="./Results", save.folder="SIM1", mechanism=mechanisms[a])
-}
+# for(a in 1:length(mechanisms)){
+#   runComparisons(dataset="SIM", sim_params=list(N=1e5, D=1, P=2, seed=NULL), save.dir="./Results", save.folder="SIM1", mechanism=mechanisms[a])
+# }
+
+# Supplementary simulations (P=8, 5 sims, vary miss_pct), proof of concept
+# sim_indexes=1:5; miss_pcts = c(15,25,35)
+sim_indexes=1; miss_pcts=25
+for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){
+  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=8, seed=NULL), save.dir="./Results",save.folder="SIM2", mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c])
+}}}
 
 # Main simulations (P=100, 5 sims)
 sim_indexes=1:5; miss_pcts = 25
 for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){
   runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=100, seed=NULL), save.dir="./Results",save.folder="SIM2", mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c])
-}}}
-
-# Supplementary simulations (P=8, 5 sims, vary miss_pct)
-sim_indexes=1:5; miss_pcts = c(15,25,35)
-for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){
-  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=8, seed=NULL), save.dir="./Results",save.folder="SIM2", mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c])
 }}}
 
 # UCI datasets (fixed miss_pct)

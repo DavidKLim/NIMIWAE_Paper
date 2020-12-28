@@ -2,12 +2,12 @@ from torch import nn
 from torch.optim import Adam
 import os
 
-os.chdir("otherMethods/vaeac")
+# os.chdir("otherMethods/vaeac")
 from mask_generators import MCARGenerator
 from nn_utils import ResBlock, MemoryLayer, SkipConnection
 from prob_utils import CategoricalToOneHotLayer, GaussianCategoricalLoss, \
                        GaussianCategoricalSampler, SetGaussianSigmasToOne
-os.chdir("../..")
+# os.chdir("../..")
 
 def get_imputation_networks(one_hot_max_sizes,h,n_hidden_layers,dim_z,bs,lr):
     """
