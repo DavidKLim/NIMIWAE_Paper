@@ -63,7 +63,11 @@ def run_HIVAE(data,Missing,data_types,lr=1e-3,bs=200,n_epochs=500,train=1, displ
   import os
   import sys
   import argparse
+  ## tensorflow version 1.0
   import tensorflow as tf
+  ## tensorflow version 2.0+
+  #import tensorflow.compat.v1 as tf
+  #tf.disable_v2_behavior()
   import time
   import numpy as np
   import csv

@@ -15,7 +15,11 @@ The variable reuse indicates the mode of this functions
 
 """
 
+## tensorflow version 1.0
 import tensorflow as tf
+## tensorflow version 2.0+
+#import tensorflow.compat.v1 as tf
+#tf.disable_v2_behavior()
 import numpy as np
 
 def loglik_real(batch_data,list_type,theta,normalization_params,tau2,kernel_initializer,name,reuse):

@@ -7,7 +7,11 @@ Created on Mon Apr 16 10:59:14 2018
 """
 
 import csv
+## tensorflow version 1.0
 import tensorflow as tf
+## tensorflow version 2.0+
+#import tensorflow.compat.v1 as tf
+#tf.disable_v2_behavior()
 import loglik_models_missing_normalize as loglik_models_missing_normalize
 import numpy as np
 

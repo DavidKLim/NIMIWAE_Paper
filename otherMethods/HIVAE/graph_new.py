@@ -8,7 +8,11 @@ Graph definition for all models
 @author: anazabal, olmosUC3M, ivaleraM
 """
 
+## tensorflow version 1.0
 import tensorflow as tf
+## tensorflow version 2.0+
+#import tensorflow.compat.v1 as tf
+#tf.disable_v2_behavior()
 import numpy as np
 import VAE_functions as VAE_functions
 import os

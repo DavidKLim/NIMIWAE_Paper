@@ -1,7 +1,7 @@
 NIMIWAE\_Paper
 ================
 David Lim
-28 December, 2020
+29 December, 2020
 
 <!--HOW TO COMPLETE THIS FORM:-->
 
@@ -177,7 +177,7 @@ Python modules:
   - pandas (1.5.0)
   - scipy (1.4.1)
   - torch (1.5.0)
-  - tensorflow (2.2.0)
+  - tensorflow (1.14.0)
   - sklearn (0.22.1)
   - argparse (1.1)
   - tqdm (4.42.1)
