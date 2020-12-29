@@ -68,8 +68,10 @@ def run_HIVAE(data,Missing,data_types,lr=1e-3,bs=200,n_epochs=500,train=1, displ
   import numpy as np
   import csv
   
-  import otherMethods.HIVAE.read_functions as read_functions
-  import otherMethods.HIVAE.graph_new as graph_new
+  os.chdir("otherMethods/HIVAE")
+  import read_functions as read_functions
+  import graph_new as graph_new
+  os.chdir("../..")
   # import parser_arguments
 
   def print_loss(epoch, start_time, avg_loss, avg_test_loglik, avg_KL_s, avg_KL_z):

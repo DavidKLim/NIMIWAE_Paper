@@ -12,7 +12,7 @@ Created on Tue Jan 23 16:23:35 2018
 # hidden_dim is the number of neurons of the first hidden layer
 
 import tensorflow as tf
-import otherMethods.HIVAE.VAE_functions as VAE_functions
+import VAE_functions as VAE_functions
         
 def encoder(X_list, miss_list, batch_size, z_dim, s_dim, tau):
     

@@ -10,7 +10,7 @@ Graph definition for all models
 
 import tensorflow as tf
 import numpy as np
-import otherMethods.HIVAE.VAE_functions as VAE_functions
+import VAE_functions as VAE_functions
 import os
 
 def HVAE_graph(model_name, data_types, batch_size, learning_rate=1e-3, z_dim=2, y_dim=1, s_dim=2, y_dim_partition=[]):
