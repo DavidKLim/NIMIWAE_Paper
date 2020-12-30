@@ -48,6 +48,7 @@ If box above is checked and if no simulated/synthetic data files are provided by
 <!--
 Provide a short (< 100 words), high-level description of the data
 -->
+The Physionet 2012 Challenge dataset is an EHR dataset that contains 12,000 ICU patients with measurements of 37 variables across 48 time points, with one hour between each consecutive time point. Pre-processing of the data was done using the code in [this repository](https://github.com/alistairewj/challenge2012), which uses prior domain knowledge to compress the repeated measurements into one observation per patient. The patients are divided into training, validation, and test sets of equal sizes, and an entry is missing if, for a patient, the corresponding feature was not measured at any time point.
 
 ## Availability
 
@@ -60,7 +61,28 @@ If the data are publicly available, see the *Publicly available data* section. O
 ### Publicly available data
 
 - [x] Data are available online at:
-Various locations. See the Appendix of the NIMIWAE manuscript (link to paper here). For your convenience, raw UCI and Physionet data can be found here: (link to raw_data folder here). Missingness is simulated on top of the UCI data. The missingness-simulated datasets can be reproduced by using the code here (using the default seed as provided), but these datasets can also be provided by request.
+Various locations. See the supplementary materials of the NIMIWAE manuscript (NIMIWAE_Appendix.pdf) for details on these datasets. Missingness is simulated on top of the UCI datasets, while missingness is inherent in the Physionet dataset. The missingness-simulated datasets can be reproduced by using the code in the reproducibility repository (using the default seed as provided), and these datasets can also be provided by request. These links are copied below for your convenience.
+
+#### banknote
+Documentation of the data can be found [here](https://archive.ics.uci.edu/ml/datasets/banknote+authentication). The data can be found [here](https://archive.ics.uci.edu/ml/machine-learning-databases/00267/data_banknote_authentication.txt)
+
+#### concrete
+Documentation of the data can be found [here](https://archive.ics.uci.edu/ml/datasets/concrete+compressive+strength). The data can be found [here](https://archive.ics.uci.edu/ml/machine-learning-databases/concrete/compressive/Concrete_Data.xls)
+
+#### hepmass
+Documentation of the data can be found [here](https://archive.ics.uci.edu/ml/datasets/HEPMASS). The data can be found [here](https://archive.ics.uci.edu/ml/machine-learning-databases/00347)
+
+#### power
+Documentation of the data can be found [here](https://archive.ics.uci.edu/ml/datasets/Individual+household+electric+power+consumption). The data can be found [here](https://archive.ics.uci.edu/ml/machine-learning-databases/00235/household_power_consumption.zip)
+
+#### red
+Documentation of the data can be found [here](https://archive.ics.uci.edu/ml/datasets/wine+quality). The data can be found [here](https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-red.csv)
+
+#### white
+Documentation of the data can be found [here](https://archive.ics.uci.edu/ml/datasets/wine+quality). The data can be found [here](https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv)
+
+#### Physionet 2012 Challenge data
+The raw data can be downloaded [here](https://physionet.org/content/challenge-2012/1.0.0/). The pre-processed version of the data can be found [here](https://github.com/alistairewj/challenge2012).
 
 - [ ] Data are available as part of the paper’s supplementary material.
 
@@ -77,7 +99,7 @@ Various locations. See the Appendix of the NIMIWAE manuscript (link to paper her
 Check all that apply
 -->
 - [x] CSV or other plain text.
-- [x] Software-specific binary format (.Rda, Python pickle, etc.): pkcle
+- [ ] Software-specific binary format (.Rda, Python pickle, etc.): 
 - [ ] Standardized binary format (e.g., netCDF, HDF5, etc.): 
 - [ ] Other (please specify):
 
@@ -88,7 +110,7 @@ A data dictionary provides information that allows users to understand the meani
 -->
 
 - [x] Provided by authors in the following file(s):
-See the Appendix of the NIMIWAE manuscript
+See the Appendix of the NIMIWAE manuscript (NIMIWAE_Appendix.pdf)
 
 - [ ] Data file(s) is(are) self-describing (e.g., netCDF files)
 
@@ -107,7 +129,7 @@ OPTIONAL: Provide any additional details that would be helpful in understanding 
 <!--
 Provide a short (< 100 words), high-level description of the code. If necessary, more details can be provided in files that accompany the code.
 -->
-Reproduces training of models and summarization of results in the paper "Handling Non-ignorably Missing Features in Electronic Health Records Data Using Importance-Weighted Autoencoders." We show superiority of NIMIWAE in imputation of simulated missing values, and perform comparative analyses on the Physionet 2012 Challenge EHR Dataset, showing improvements in imputed missing entries.
+This code reproduces training of models and summarization of results in the paper "Handling Non-ignorably Missing Features in Electronic Health Records Data Using Importance-Weighted Autoencoders." We show superiority of NIMIWAE in imputation of simulated missing values, and perform comparative analyses on the Physionet 2012 Challenge EHR Dataset, showing improvements in imputed missing entries.
 
 ## Description
 
@@ -126,8 +148,8 @@ Check all that apply
     - [x] Python
     - [ ] MATLAB toolbox
     - [ ] Other: 
-- [ ] Reproducible report 
-    - [ ] R Markdown
+- [x] Reproducible report 
+    - [x] R Markdown
     - [ ] Jupyter notebook
     - [ ] Other:
 - [ ] Shell script
@@ -189,6 +211,8 @@ This code requires access to a cuda-enabled GPU.
 
 ### Additional information (optional)
 
+The blinded NIMIWAE package can be found [here](https://anonymous.4open.science/r/40ee45ab-ea2d-43b8-8010-f16c6460f844/). It has also been attached in the original submission for convenience.
+
 <!--
 OPTIONAL: By default, submitted code will be published on the JASA GitHub repository (http://github.com/JASA-ACS) as well as in the supplementary material. Authors are encouraged to also make their code available in a public repository. If relevant, please provide unique identifier/DOI/version information.
 
@@ -226,7 +250,7 @@ Check all that apply
 <!--
 Describe how to use the materials provided to reproduce analyses in the manuscript. Additional details can be provided in file(s) accompanying the reproducibility materials.
 -->
-Run `runComparisons.R` script to train all models (time-consuming). Then, run `SummarizeResults.R` script to reproduce Figures 2 and 3, and the results in Table 1.
+Run `runComparisons.R` script to train all models (time-consuming). Then, run `SummarizeResults.R` script to reproduce Figures 2 and 3, and the results in Table 2.
 
 ### Expected run-time
 
@@ -246,6 +270,8 @@ Training the deep learning architectures can be very time-consuming, and it may 
 <!--
 OPTIONAL: Additional documentation provided (e.g., R package vignettes, demos or other examples) that show how to use the provided code/software in other settings.
 -->
+
+The blinded reproducibility repository can be found [here](https://anonymous.4open.science/r/cc924aeb-9dcb-47f7-a1bb-372d87667deb/), and it can also be found attached in the original submission for convenience.
 
 # Notes (optional)
 
