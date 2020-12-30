@@ -4,10 +4,11 @@ source_python("otherMethods.py")
 
 runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_cols=NULL, ref_cols=NULL, scheme="UV",
                           sim_params=list(N=1e5, D=1, P=2, seed = NULL),
-                          dataset=c("Physionet_mean","Physionet_all","HEPMASS","POWER","GAS","IRIS","RED","WHITE","YEAST","BREAST","CONCRETE","BANKNOTE",
+                          dataset=c("Physionet","HEPMASS","POWER","GAS","IRIS","RED","WHITE","YEAST","BREAST","CONCRETE","BANKNOTE",
                                     "SIM"),
                           save.folder=dataset, save.dir=".",
-                          run_methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),phi_0=5,sim_index=1){
+                          run_methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),phi_0=5,sim_index=1,
+                          rdeponz = c(F), arch = c("IWAE"), ignorable=F){
   np = import('numpy',convert=FALSE)
   source("processComparisons.R")
 
@@ -25,15 +26,15 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
   if(!file.exists(sprintf("%s.RData",fname_data))){
     print("Preparing data")
     if(dataset=="SIM"){ fit_data = NIMIWAE::simulate_data( sim_params$N, sim_params$D, sim_params$P, sim_index, seed = 9*sim_index, ratio=c(6,2,2) ); data=fit_data$data; classes=fit_data$classes
-    } else{ fit_data = NIMIWAE::read_data( dataset=dataset, ratio=c(6,2,2) ); data=fit_data$data; classes=fit_data$classes }
+    } else if(dataset!="Physionet"){ fit_data = NIMIWAE::read_data( dataset=dataset, ratio=c(6,2,2) ); data=fit_data$data; classes=fit_data$classes }
     n=nrow(data); p=ncol(data)
-
-    # default phi=5
-    set.seed(222); phis=rlnorm(p,log(phi_0),0.2)  # draw phi from log-normal with log-mean phi_0, sd=0.2
-    phi_z=NULL  # dependence on Z (latent variable): disabled for fmodel="S" (Selection model). Used for fmodel="PM" (Pattern-mixture model)
 
     ## Simulate Missing ##
     if(!grepl("Physionet",dataset)){
+      # default phi=5
+      set.seed(222); phis=rlnorm(p,log(phi_0),0.2)  # draw phi from log-normal with log-mean phi_0, sd=0.2
+      phi_z=NULL  # dependence on Z (latent variable): disabled for fmodel="S" (Selection model). Used for fmodel="PM" (Pattern-mixture model)
+
       print(sprintf("Simulating %s missingness",mechanism))
       Missing=matrix(1L,nrow=nrow(data),ncol=ncol(data))    # all observed unless otherwise specified
       if(is.null(miss_cols)){
@@ -52,26 +53,61 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
                                    phis, phi_z,
                                    scheme, mechanism, sim_index, fmodel="S") # Z is NULL for Selection model (fmodel="S"). Z required for Pattern-mixture model (fmodel="PM")
       Missing=fit_missing$Missing; prob_Missing=fit_missing$probs      # missing mask, probability of each observation being missing unknown
+      g = fit_data$g
     } else{  # Physionet_mean and Physionet_all have inherent missingness, no missingness simulated. Code "Missing" to be consistent with notation
       library(reticulate)
-      np <- import("numpy")
-      npz1 <- np$load("data/PhysioNet2012/physionet.npz")
+      # np <- import("numpy")
+      # npz1 <- np$load("data/PhysioNet2012/physionet.npz")
+      if(!dir.exists("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0")){
+        # if training set doesn't exist, assume it hasn't been downloaded
+        setwd("data")
 
-      if(strsplit(dataset,"_")[[1]][2] == "mean"){
-        # dataset=="Physionet_mean"
-        Missing = 1 - floor(rbind(apply(npz1$f$m_train_miss, c(1,3), mean),
-                                  apply(npz1$f$m_val_miss, c(1,3), mean),
-                                  apply(npz1$f$m_test_miss, c(1,3), mean)))
-      } else if(strsplit(dataset,"_")[[1]][2] == "all"){
-        # dataset=="Physionet_all"
-        library(abind)
-        M3D = aperm(abind(npz1$f$m_train_miss,
-                          npz1$f$m_val_miss,
-                          npz1$f$m_test_miss,
-                          along=1),
-                    c(2,1,3))                                             # switch dims so 48 time points is first dim
-        Missing = 1 - matrix(M3D, nrow=dim(M3D)[1]*dim(M3D)[2], ncol=dim(M3D)[3])   # stack time series data: 1st subject is 1st - 48th observations, 2nd subj is 49th - 96th, ...
+        print("Downloading Physionet 2012 Challenge Dataset...")
+        download.file("https://physionet.org/static/published-projects/challenge-2012/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0.zip",
+                      destfile="predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0.zip")
+
+        print("Unzipping compressed directory...")
+        unzip("predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0.zip")
+
+        print("Removing zip file...")
+        file.remove("predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0.zip")
+
+        if(!file.exists("set_c_merged.h5")){
+          print("Merging into one dataset for summary table (Table 1)...")
+          source_python("raw_data_gather.py")
+        }
+
+        setwd("predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0")
+
+        ## run alistair_preprocessing.py
+        print("Processing data...")
+        source_python("../alistair_preprocessing.py")
+
+        if(!dir.exists("set-c")){ untar("set-c.tar.gz") }
+        if(!file.exists("PhysionetChallenge2012-set-a.csv")){ process_Alistair('set-a') }
+        if(!file.exists("PhysionetChallenge2012-set-b.csv")){ process_Alistair('set-b') }
+        if(!file.exists("PhysionetChallenge2012-set-c.csv")){ process_Alistair('set-c') }
+
+      } else{
+        setwd("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0")
       }
+
+      d1 = read.csv("PhysionetChallenge2012-set-a.csv")
+      d2 = read.csv("PhysionetChallenge2012-set-b.csv")
+      d3 = read.csv("PhysionetChallenge2012-set-c.csv")
+
+      setwd("../..")
+
+      d1 = d1[,-c(2:6)]  # remove outcome variables (survival, mortality indicator, SAPS/SOFA/length of stay)
+      d2 = d2[,-c(2:6)]
+      d3 = d3[,-c(2:6)]
+
+      data = rbind(d1,d2,d3); data = data[,-1]   # remove recordid
+
+      Missing = 1 - (is.na(data)^2)
+
+      ntrain = 4000; nvalid = 4000; ntest = 4000
+      ids = c( rep("train", ntrain), rep("valid", nvalid), rep("test", ntest) ); g = ids
       fit_missing=NULL; prob_Missing=Missing; ref_cols=NULL; miss_cols=NULL
     }
 
@@ -85,7 +121,6 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     #   labels = names(ratios)
     # ))
 
-    g = fit_data$g
     save(list=c("data","Missing","fit_data","fit_missing","prob_Missing","g","ref_cols","miss_cols"),file=sprintf("%s.RData",fname_data))
   }else{
     print("Loading previously simulated data")
@@ -123,10 +158,10 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
   #### NIMIWAE ####
   print("NIMIWAE")
   if("NIMIWAE" %in% run_methods){
+    covars_r=rep(1,ncol(data))
     # Fixed:
     dec_distrib="Normal"; learn_r=T
 
-    covars_r=rep(1,ncol(data)); ignorable=F  # all as covariates
     # if(mechanism=="MCAR"){ignorable=T; covars_r = rep(0,ncol(data)); print(covars_r)
     # }else if(mechanism=="MAR"){ignorable=F; covars_r = rep(0,ncol(data)); covars_r[ref_cols] = 1; print(covars_r)  # ignorable, but testing nonignorable with MAR --> should still be fine
     # } else if(mechanism=="MNAR"){ignorable=F; covars_r = rep(0,ncol(data)); covars_r[miss_cols] = 1; print(covars_r)}
@@ -134,13 +169,17 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     # Variants:
     # if(dataset%in%c("TOYZ","TOYZ2")){rdeponzs = c(F,T); archs = c("IWAE","VAE"); betaVAEs = c(F,T)
     # }else{
-    rdeponz = c(F); arch = c("IWAE"); betaVAE = c(F)
     # }
     dir_name2=sprintf("%s",dir_name)
     ifelse(!dir.exists(dir_name2),dir.create(dir_name2),FALSE)
 
-    yesbeta=if(betaVAE){"beta"}else{""}; yesrz = if(rdeponz){"T"}else{"F"}
-    fname0=sprintf("%s/res_NIMIWAE_%s_%d_%s%s_rz%s.RData",dir_name2,mechanism,miss_pct,yesbeta,arch,yesrz)
+    yesrz = if(rdeponz){"T"}else{"F"}
+
+    if(ignorable){
+      fname0=sprintf("%s/res_NIMIWAE_%s_%d_%s_rz%s_ignorable.RData",dir_name2,mechanism,miss_pct,arch,yesrz)
+    }else{
+      fname0=sprintf("%s/res_NIMIWAE_%s_%d_%s_rz%s.RData",dir_name2,mechanism,miss_pct,arch,yesrz)
+    }
 
     print(fname0)
     if(!file.exists(fname0)){
@@ -369,25 +408,36 @@ mechanisms=c("MCAR","MAR","MNAR")
 # sim_indexes=1:5; miss_pcts = c(15,25,35)
 sim_indexes=1; miss_pcts=25
 for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){
-  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=8, seed=NULL), save.dir="./Results",save.folder="SIM2", mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c])
+  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=8, seed=NULL), save.dir="./Results",save.folder="SIM2",
+                 mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c],
+                 rdeponz = c(F), arch = c("IWAE"), ignorable=F)
 }}}
 
 # Main simulations (P=100, 5 sims)
 sim_indexes=1:5; miss_pcts = 25
 for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){
-  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=100, seed=NULL), save.dir="./Results",save.folder="SIM2", mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c])
+  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=100, seed=NULL), save.dir="./Results",save.folder="SIM2",
+                 mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c],
+                 rdeponz = c(F), arch = c("IWAE"), ignorable=F)
 }}}
 
 # UCI datasets (fixed miss_pct)
 datasets=c("BANKNOTE","CONCRETE","RED","WHITE")
 for(a in 1:length(mechanisms)){for(d in 1:length(datasets)){
-  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a])
+  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a],rdeponz = c(F), arch = c("IWAE"),
+                 ignorable=F)
+  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a],rdeponz = c(F), arch = c("IWAE"),run_methods=c("NIMIWAE"),
+                 ignorable=T)
 }}
 datasets=c("HEPMASS","POWER") # large datasets: runs into memory issues with missForest (MF)
 for(a in 1:length(mechanisms)){for(d in 1:length(datasets)){
-  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a], run_methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN"))
+  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a], run_methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN"),
+                 rdeponz = c(F), arch = c("IWAE"), ignorable=F)
+  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a], run_methods=c("NIMIWAE"),
+                 rdeponz = c(F), arch = c("IWAE"), ignorable=T)
 }}
 #### NEED TO INCLUDE IGNORABLE RUN IN PARENTHESES ####
 
 # Physionet analysis
-runComparisons(dataset="Physionet_mean", save.dir="./Results",mechanism="MNAR")  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR
+runComparisons(dataset="Physionet", save.dir="./Results",mechanism="MNAR", ignorable=F)  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR
+runComparisons(dataset="Physionet", save.dir="./Results",miss_pct=NA, mechanism="MNAR", run_methods=c("NIMIWAE"), ignorable=T)  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR

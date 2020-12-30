@@ -17,12 +17,16 @@ overlap_hists=function(x1,x2,x3=NULL,lab1="Truth",lab2="Imputed",lab3="...",
   print(p)
 }
 
-output_file.name=function(dir_name,method=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
-                          mechanism,miss_pct,betaVAE,arch,rdeponz){
+output_file.name=function(dir_name,method=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
+                          mechanism,miss_pct,arch,rdeponz){
   if(method=="NIMIWAE"){
-    yesbeta = if(betaVAE){"beta"}else{""}; yesrdeponz = if(rdeponz){"rzT"}else{"rzF"}
-    file.name=sprintf("%s/res_%s_%s_%d_%s%s_%s",
-                      dir_name,method,mechanism,miss_pct,yesbeta,arch,yesrdeponz)
+    yesrdeponz = if(rdeponz){"rzT"}else{"rzF"}
+    file.name=sprintf("%s/res_NIMIWAE_%s_%d_%s_%s",
+                      dir_name,method,mechanism,miss_pct,arch,yesrdeponz)
+  }else if(method=="IMIWAE"){
+    yesrdeponz = if(rdeponz){"rzT"}else{"rzF"}
+    file.name=sprintf("%s/res_NIMIWAE_%s_%d_%s_%s_ignorable",
+                      dir_name,method,mechanism,miss_pct,arch,yesrdeponz)
   }else{
     file.name=sprintf("%s/res_%s_%s_%d",
                       dir_name,method,mechanism,miss_pct) # for miwae, default = Normal (StudentT can be done later)
@@ -33,8 +37,8 @@ output_file.name=function(dir_name,method=c("NIMIWAE","MIWAE","HIVAE","VAEAC","M
 }
 
 processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MAR","MNAR"),miss_pct=c(15,25,35),
-                            methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
-                            imputation_metric=c("MSE","NRMSE","L1","L2"), betaVAE=NULL, arch=NULL, rdeponz=NULL, outfile=NULL){
+                            methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
+                            imputation_metric=c("MSE","NRMSE","L1","L2"), arch=NULL, rdeponz=NULL, outfile=NULL){
   library(ggplot2)
   library(grid)
   library(gridExtra)
@@ -55,7 +59,7 @@ processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MA
     for(i in 1:length(mechanisms)){for(j in 1:length(methods)){
       data.file.name=sprintf("%s/data_%s_%d.RData",dir_name,mechanisms[i],miss_pct[ii])
       file.name = output_file.name(dir_name=dir_name,method=methods[j], mechanism=mechanisms[i],
-                                   miss_pct=miss_pct[ii], betaVAE=betaVAE, arch=arch, rdeponz=rdeponz)
+                                   miss_pct=miss_pct[ii], arch=arch, rdeponz=rdeponz)
       list_res[[index]]=toy_process(data.file.name,file.name,methods[j])
       params[[index]]=c(methods[j],mechanisms[i],miss_pct[ii])
       names(params[[index]])=c("method","mechanism","miss_pct")
@@ -116,7 +120,7 @@ processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MA
 }
 
 saveFigures = function(datasets=c("SIM1","SIM2","SIM3"), sim_index=1:5, phi0=5,
-                       mechanisms=c("MCAR","MAR","MNAR"), miss_pcts=c(15,25,35), methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),test_dir="",
+                       mechanisms=c("MCAR","MAR","MNAR"), miss_pcts=c(15,25,35), methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),test_dir="",
                        outfile=NULL){
   list_res=list(); index=1
   for(s in 1:length(sim_index)){
@@ -140,7 +144,7 @@ tabulate_UCI=function(datasets=c("RED","CONCRETE","BREAST","BANKNOTE","WHITE","Y
                                  "HEPMASS","GAS","POWER","MINIBOONE"),
                       mechanisms=c("MCAR","MAR","MNAR"),miss_pct=c(25),
                       methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),phi0=5,sim_index=1,
-                      betaVAE=NULL, arch=NULL, rdeponz=NULL){
+                      arch=NULL, rdeponz=NULL){
   # return df with columns: dataset, method, mechanism, and value (NRMSE, L1, L2, MSE, or RMSE. choose here)
   nvals = length(datasets)*length(mechanisms)*length(miss_pct)*length(methods)*length(sim_index)
   df=data.frame(matrix(nrow=nvals,ncol=10))
@@ -148,12 +152,14 @@ tabulate_UCI=function(datasets=c("RED","CONCRETE","BREAST","BANKNOTE","WHITE","Y
   colnames(df) = c("dataset","mechanism","method","miss_pct","sim_index","MSE","RMSE","NRMSE","L1","L2")
   for(i in 1:length(datasets)){for(j in 1:length(mechanisms)){for(k in 1:length(methods)){for(l in 1:length(miss_pct)){for(m in 1:length(sim_index)){
     ### LOAD Results/datasets[i]/phi5/sim(index)/res_(method)_(mechanism)_(miss_pct).RData
-    if(methods[k]=="NIMIWAE2"){subdir="/Ignorable"; method0="NIMIWAE"}else{subdir=""; method0=methods[k]}
+    # if(methods[k]=="NIMIWAE2"){subdir="/Ignorable"; method0="NIMIWAE"}else{subdir=""; method0=methods[k]}
+
+    subdir=""; method0=methods[k]
     dir_name0 = sprintf("Results/%s/phi%d/sim%d",datasets[i],phi0,sim_index[m])
     dir_name = sprintf("%s%s",dir_name0,subdir)
     data.file.name=sprintf("%s/data_%s_%d.RData",dir_name0,mechanisms[j],miss_pct[l])
     file.name = output_file.name(dir_name=dir_name,method=method0, mechanism=mechanisms[j],
-                                 miss_pct=miss_pct[l], betaVAE=F, arch="IWAE", rdeponz=F)
+                                 miss_pct=miss_pct[l], arch=arch, rdeponz=rdeponz)
     df[index,1:5] = c(datasets[i],mechanisms[j],methods[k],miss_pct[l],sim_index[m])
     print(data.file.name)
     print(file.name)
@@ -169,4 +175,223 @@ tabulate_UCI=function(datasets=c("RED","CONCRETE","BREAST","BANKNOTE","WHITE","Y
   df$MSE = as.numeric(df$MSE); df$NRMSE = as.numeric(df$NRMSE); df$RMSE = as.numeric(df$RMSE);
   df$L1 = as.numeric(df$L1); df$L2 = as.numeric(df$L2)
   return(df)
+}
+
+
+summarize_Physionet = function(prefix="",mechanism="MNAR",miss_pct=NA,dataset="Physionet"){
+  dir_name = sprintf("Results/%s/phi5/sim1/%s",dataset,prefix)
+  load(sprintf("%s/data_%s_%d.RData",dir_name,mechanism,miss_pct))
+  library(ggplot2)
+  library(ggfortify)
+  library(gridExtra)
+  # load and extract info here
+  d1 = read.csv("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0/Outcomes-a.txt")
+  d2 = read.csv("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0/Outcomes-b.txt")
+  d3 = read.csv("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0/Outcomes-c.txt")
+  classes = c(d1$In.hospital_death, d2$In.hospital_death, d3$In.hospital_death)    # mortality
+
+  datas = split(data.frame(data), g)        # split by $train, $test, and $valid
+  datas$test = data
+
+  Missings = split(data.frame(Missing), g)
+  Missings$test = Missing
+
+  # probs_Missing = split(data.frame(prob_Missing),g)
+  norm_means=colMeans(datas$train); norm_sds=apply(datas$train,2,sd)
+
+  load(sprintf("%s/res_NIMIWAE_%s_%d_IWAE_rzF_ignorable.RData",dir_name,mechanism,miss_pct))
+  res0 = res_NIMIWAE
+  xhat0 = res_NIMIWAE$xhat_rev
+
+  load(sprintf("%s/res_NIMIWAE_%s_%d_IWAE_rzF.RData",dir_name,mechanism,miss_pct))
+  res1= res_NIMIWAE
+  xhat1 = res_NIMIWAE$xhat_rev
+
+  load(sprintf("%s/res_MIWAE_%s_%d.RData",dir_name,mechanism,miss_pct))
+  xhat2 = res_MIWAE$xhat_rev
+
+  load(sprintf("%s/res_HIVAE_%s_%d.RData",dir_name,mechanism,miss_pct))
+  xhat3 = res_HIVAE$data_reconstructed
+
+  load(sprintf("%s/res_VAEAC_%s_%d.RData",dir_name,mechanism,miss_pct))
+  xhat_all = res_VAEAC$result
+  xhat4 = matrix(nrow=nrow(datas$test),ncol=ncol(datas$test))
+  n_imputations = res_VAEAC$train_params$n_imputations
+  for(i in 1:nrow(datas$test)){
+    xhat4[i,]=colMeans(xhat_all[((i-1)*n_imputations+1):(i*n_imputations),])
+  }
+
+  load(sprintf("%s/res_MEAN_%s_%d.RData",dir_name,mechanism,miss_pct))
+  xhat5 = res_MEAN$xhat_rev
+
+  load(sprintf("%s/res_MF_%s_%d.RData",dir_name,mechanism,miss_pct))
+  xhat6 = res_MF$xhat_rev
+
+  # 0: NIMIWAE_Ignorable, 1: NIMIWAE, 2: MIWAE, 3: HIVAE
+  # 4: VAEAC, 5: MEAN, 6: MF
+  for(ii in 1:ncol(xhat0)){
+    idy=ii
+    if(all(Missing[,idy]==1)){next}
+
+    png(sprintf("%s/Diagnostics/MEAN_col%d.png",
+                dir_name,idy))
+    boxplot(xhat0[Missing[,idy]==0,idy],xhat1[Missing[,idy]==0,idy],xhat2[Missing[,idy]==0,idy],xhat3[Missing[,idy]==0,idy],xhat4[Missing[,idy]==0,idy],
+            xhat6[Missing[,idy]==0,idy],
+            names=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MissForest"),
+            main=sprintf("Boxplot of Imputed Values of %s",colnames(data)[idy]),outline=F,las=2)
+    abline(h=xhat5[Missing[,idy]==0,idy][1],col="red"); dev.off()
+
+    df = data.frame(method=rep(c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MissForest"),each=sum(Missing[,idy]==0)),
+                    L1=c(xhat0[Missing[,idy]==0,idy],xhat1[Missing[,idy]==0,idy],xhat2[Missing[,idy]==0,idy],xhat3[Missing[,idy]==0,idy],xhat4[Missing[,idy]==0,idy],
+                         xhat6[Missing[,idy]==0,idy])  )
+    p=ggplot(df,aes(x=method,y=value)) +
+      geom_boxplot(out)
+
+    imputed_data = cbind(xhat0[Missing[,idy]==0,idy],
+                         xhat1[Missing[,idy]==0,idy],
+                         xhat2[Missing[,idy]==0,idy],
+                         xhat3[Missing[,idy]==0,idy],
+                         xhat4[Missing[,idy]==0,idy],
+                         xhat5[Missing[,idy]==0,idy],
+                         xhat6[Missing[,idy]==0,idy])
+    colnames(imputed_data) = c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF")
+    imputed_data = as.data.frame(imputed_data)
+
+    p1 = ggplot(imputed_data, aes(x=VAEAC, y=NIMIWAE)) + geom_point() + geom_abline(slope=1,intercept=0,col="red")
+    ggsave(filename=sprintf("%s/Diagnostics/NIMvVAEAC_col%d.png",
+                            dir_name,idy),plot=p1)
+
+    p2 = ggplot(imputed_data, aes(x=IMIWAE, y=NIMIWAE)) + geom_point() + geom_abline(slope=1,intercept=0,col="red")
+    ggsave(filename=sprintf("%s/Diagnostics/NIMvIM_col%d.png",
+                            dir_name,idy),plot=p2)
+
+    p3 = ggplot(imputed_data, aes(x=IMIWAE, y=VAEAC)) + geom_point() + geom_abline(slope=1,intercept=0,col="red")
+    ggsave(filename=sprintf("%s/Diagnostics/VAEACvIM_col%d.png",
+                            dir_name,idy),plot=p3)
+
+
+  }
+
+  # # idy=14 # 12 (MAP) and 14 (NIMAP)
+  # idy = 13 # 13 (DBP), 14 (MAP), 15 (SBP)
+  # # 19 (ALP) and 23 (BUN)
+
+  miss_given_mortality = matrix(nrow=3,ncol=2)    ### LOOKING AT DBP, MAP, SBP, respectively
+  for(ii in 13:15){
+    idy=ii
+    tab = table(classes,Missing[,idy])
+    # apply(tab,1,function(x) (x/sum(x)))   ## look down column: given mortality =0 or 1, % observed for variable
+    # apply(tab,2,function(x) (x/sum(x)))   ## look down column: given missing in variable, % mortality
+    miss_given_mortality[ii-12,] = apply(tab,1,function(x) (x/sum(x)))[2,]   ## Of patients who survived (0) or died (1), proportion of that feature that was observed
+  }
+  miss_given_mortality = 1-miss_given_mortality
+  colnames(miss_given_mortality) = c("Survived","Died")
+  rownames(miss_given_mortality) = c("Missing DBP","Missing MAP","Missing SBP")
+  write.table(miss_given_mortality,file=sprintf("%s/Diagnostics/miss_BPs.txt",dir_name))
+  png(sprintf("%s/Diagnostics/miss_BPs.png",dir_name), height=500, width=500)
+  p<-tableGrob(round(miss_given_mortality,4))
+  grid.arrange(p)
+  dev.off()
+
+
+  #########################################
+  ############################################
+  ################################################
+
+  all_coefs = matrix(NA,ncol=ncol(data),nrow=6)
+  all_SEs = matrix(NA,ncol=ncol(data),nrow=6)
+  all_Zs = matrix(NA,ncol=ncol(data),nrow=6)
+  all_pvals = matrix(NA,ncol=ncol(data),nrow=6)
+  all_95Ls = matrix(NA,ncol=ncol(data),nrow=6)
+  all_95Hs = matrix(NA,ncol=ncol(data),nrow=6)
+  rownames(all_coefs) = c("IMIWAE","NIMIWAE","HIVAE","VAEAC","Mean","MF")
+  rownames(all_SEs) = c("IMIWAE","NIMIWAE","HIVAE","VAEAC","Mean","MF")
+  rownames(all_Zs) = c("IMIWAE","NIMIWAE","HIVAE","VAEAC","Mean","MF")
+  rownames(all_pvals) = c("IMIWAE","NIMIWAE","HIVAE","VAEAC","Mean","MF")
+  rownames(all_95Ls) = c("IMIWAE","NIMIWAE","HIVAE","VAEAC","Mean","MF")
+  rownames(all_95Hs) = c("IMIWAE","NIMIWAE","HIVAE","VAEAC","Mean","MF")
+  colnames(all_coefs) = c(colnames(data))
+  colnames(all_SEs) = c(colnames(data))
+  colnames(all_Zs) = c(colnames(data))
+  colnames(all_pvals) = c(colnames(data))
+  colnames(all_95Ls) = c(colnames(data))
+  colnames(all_95Hs) = c(colnames(data))
+
+  for(j in 1:6){
+    xhat = if(j==1){ xhat0  # IMIWAE
+    }else if(j==2){ xhat1  # NIMIWAE
+    }else if(j==3){ xhat=xhat3  # HIVAE
+    }else if(j==4){ xhat=xhat4  # VAEAC
+    }else if(j==5){ xhat=xhat5  # Mean
+    }else if(j==6){ xhat=xhat6  # MF
+    }
+    # load and extract info here
+    d1 = read.csv("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0/Outcomes-a.txt")
+    d2 = read.csv("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0/Outcomes-b.txt")
+    d3 = read.csv("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0/Outcomes-c.txt")
+
+    classes_test = c(d1$In.hospital_death, d2$In.hospital_death, d3$In.hospital_death)    # mortality
+
+
+    train_ids = which(g%in%c("train","valid")); test_ids = which(g=="test"); xhat2=xhat; classes_test2=classes_test
+    classes_test=classes_test2
+
+    x = data.frame(cbind(xhat[train_ids,]))
+
+    # library(ggplot2)
+    library(gridExtra)
+
+    if(resp=="mortality"){
+      x$class = as.factor(classes_test[train_ids])
+      model <- glm(class ~ 0 + ., data=x, family = "binomial")
+      coefs = model$coefficients
+      coefs_x = coefs[order(-coefs)]
+      names_x = names(data)[order(-coefs)]
+
+      tab=cbind(c(names_x[1:10]),round(c(coefs_x[1:10]),3))
+      p<-tableGrob(tab)
+      ggsave(p,file=sprintf("Results/%s%s/phi5/sim1/Diagnostics/%s_LR_coefs.png",prefix,dataset,method),
+               width=6, height=6)
+    }
+
+    # FOR LR ONLY
+    all_coefs[j,] = summary(model)$coefficients[,1]
+    all_SEs[j,] = summary(model)$coefficients[,2]
+    all_Zs[j,] = summary(model)$coefficients[,3]
+    all_pvals[j,] = summary(model)$coefficients[,4]
+    all_95Ls[j,] = summary(model)$coefficients[,1] - 1.96*summary(model)$coefficients[,2]
+    all_95Hs[j,] = summary(model)$coefficients[,1] + 1.96*summary(model)$coefficients[,2]
+  }
+
+  ordered_coefs = t(all_coefs[,order(-abs(all_coefs[2,]))])
+  ordered_SEs = t(all_SEs[,order(-abs(all_coefs[2,]))])
+  ordered_pvals = t(all_pvals[,order(-abs(all_coefs[2,]))])
+
+  head(ordered_coefs,n=10)
+  head(ordered_SEs,n=10)
+  tail(ordered_coefs,n=10)
+
+  LR_coefs=cbind(rep(colnames(all_coefs), each=length(rownames(all_coefs))),
+                 rep(rownames(all_coefs), times=length(colnames(all_coefs))),
+                 c(round(all_coefs,2)),
+                 c(round(all_SEs,2)),
+                 c(round(all_Zs,3)),
+                 c(round(all_pvals,2)),
+                 paste("(",c(round(all_95Ls,2)),",",c(round(all_95Hs,2)),")",sep=""))
+  colnames(LR_coefs) = c("Effect","Method","Estimate","SE","Z-stat","p value","95% Interval")
+
+  top5 = c("pH_last","FiO2_last","MechVentLast8Hour","Mg_last","Lactate_last")
+  LR_coefs_top5 = LR_coefs[LR_coefs[,1] %in% top5,]
+  LR_coefs_top5[c(1:nrow(LR_coefs_top5))%%6!=1,1] = ""
+  # LR_coefs_top5[LR_coefs_top5[,2]=="NIMIWAE0",2]="IMIWAE"
+
+
+  save(list=c("LR_coefs","LR_coefs_top5"),file=sprintf("%s/Diagnostics/LR_coefs.RData",dir_name))
+
+  png(sprintf("%s/Diagnostics/LR_coefs.png",dir_name), height=2800, width=2100,res=300)
+  p<-tableGrob(LR_coefs_top5)
+  grid.arrange(p)
+  dev.off()
+
+
 }
