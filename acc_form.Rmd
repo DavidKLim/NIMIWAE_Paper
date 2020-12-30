@@ -1,7 +1,5 @@
 ---
-title: "NIMIWAE_Paper"
-author: "David Lim"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
+title: "Author Contributions Checklist Form"
 output: pdf_document
 ---
 
@@ -211,7 +209,7 @@ This code requires access to a cuda-enabled GPU.
 The blinded NIMIWAE package can be found [here](https://anonymous.4open.science/r/40ee45ab-ea2d-43b8-8010-f16c6460f844/). It has also been attached in the original submission for convenience.
 
 <!--
-OPTIONAL: By default, submitted code will be published on the JASA GitHub repository (http://github.com/JASA-ACS) as well as in the supplementary material. Authors are encouraged to also make their code available in a public repository. If relevant, please provide unique identifier/DOI/version information.
+OPTIONAL: By default, submitted code will be published on the JASA GitHub repository (http://github.com/JASA-ACS) as well as in the supplementary material. Authors are encouraged to also make their code available in a public repository. If relevant, please provide unique identifier/DOI/version information. -->
 
 # Part 3: Reproducibility workflow
 
