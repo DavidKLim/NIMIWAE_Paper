@@ -1,11 +1,8 @@
 ---
 title: "NIMIWAE_Paper"
-author: David Lim
+author: "David Lim"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
-# output:
-#   md_document:
-#     variant: gfm
-output: github_document
+output: pdf_document
 ---
 
 <!--HOW TO COMPLETE THIS FORM:-->
