@@ -6,6 +6,35 @@ reverse_norm_MIWAE = function(x,norm_means,norm_sds){
   return(xnew)
 }
 
+NRMSE = function(x,xhat,Missing){
+  x=as.matrix(x);xhat=as.matrix(xhat);Missing=as.matrix(Missing)
+  #x = (x-colMeans(x))/apply(x,2,sd)
+  #xhat = (xhat-colMeans(x))/apply(x,2,sd)
+  # Missing=1 --> observed
+
+  MSE=rep(NA,ncol(x))
+  RMSE=rep(NA,ncol(x))
+  NRMSE=rep(NA,ncol(x))
+  for(j in 1:ncol(x)){
+    if(all(Missing[,j]==1)){next}
+    norm_term = (max(x[Missing[,j]==0,j])-min(x[Missing[,j]==0,j])) # in case denom is 0
+    # norm_term = (max(x[,j])-min(x[,j]))
+    # norm_term = sd(x[,j])
+    # norm_term = sd(x[Missing[,j]==0,j])
+    MSE[j] = mean((x[Missing[,j]==0,j]-xhat[Missing[,j]==0,j])^2)
+    RMSE[j] = sqrt(MSE[j])
+    NRMSE[j] = RMSE[j]/norm_term
+  }
+  MSE=mean(MSE,na.rm=T); RMSE=mean(RMSE,na.rm=T); NRMSE=mean(NRMSE,na.rm=T)
+
+  # MSE = mean((x[Missing==0]-xhat[Missing==0])^2)
+  # RMSE = sqrt(MSE)
+  # NRMSE = RMSE / sd(x[Missing==0])
+  L1 = mean(abs(x[Missing==0]-xhat[Missing==0]))
+  L2 = mean((x[Missing==0]-xhat[Missing==0])^2)
+  return(list(MSE=MSE,RMSE=RMSE,NRMSE=NRMSE,L1=L1,L2=L2))
+}
+
 overlap_hists=function(x1,x2,x3=NULL,lab1="Truth",lab2="Imputed",lab3="...",
                        title="MNAR Missing Values, Truth vs Imputed, Missing column"){
   library(ggplot2)
@@ -36,6 +65,71 @@ output_file.name=function(dir_name,method=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","
   return(file.name)
 }
 
+process_results=function(data.file.name, file.name, method=c("MIWAE","IMIWAE","NIMIWAE","HIVAE","VAEAC","MEAN","MF")){
+  call_name=match.call()
+
+  # load data and split into training/valid/test sets
+  load(data.file.name)
+  datas = split(data.frame(data), g)        # split by $train, $test, and $valid
+  Missings = split(data.frame(Missing), g)
+  probs_Missing = split(data.frame(prob_Missing),g)
+  norm_means=colMeans(datas$train); norm_sds=apply(datas$train,2,sd)
+
+  # MIWAE and NIMIWAE only
+  load(file.name)
+  print(file.name)
+  fit=eval(parse(text=paste("res",method,sep="_")))
+  if(method=="IMIWAE"){fit=res_NIMIWAE}
+
+  #xhat=reverse_norm_MIWAE(fit$xhat,norm_means,norm_sds)   # already reversed
+  if(method %in% c("MIWAE","NIMIWAE","IMIWAE")){
+    xhat=fit$xhat_rev
+  }else if(method =="HIVAE"){
+    xhat=fit$data_reconstructed
+  }else if(method=="VAEAC"){
+    xhat_all = fit$result    # this method reverses normalization intrinsically
+    # average imputations
+    xhat = matrix(nrow=nrow(datas$test),ncol=ncol(datas$test))
+    n_imputations = fit$train_params$n_imputations
+    for(i in 1:nrow(datas$test)){
+      xhat[i,]=colMeans(xhat_all[((i-1)*n_imputations+1):(i*n_imputations),])
+    }
+  }else if(method=="MEAN"){
+    # xhat = fit$xhat_rev
+    if(is.null(fit$xhat_rev)){fit$xhat_rev = reverse_norm_MIWAE(fit$xhat_mean,norm_means,norm_sds)}
+    xhat = fit$xhat_rev
+  }else if(method=="MF"){
+    # xhat = fit$xhat_rev
+    if(is.null(fit$xhat_rev)){fit$xhat_rev = reverse_norm_MIWAE(fit$xhat_mf,norm_means,norm_sds)}
+    xhat = fit$xhat_rev
+  }
+
+  # check same xhat:
+  print("Mean Squared Error (Observed): should be 0")
+  print(mean((xhat[Missings$test==1] - datas$test[Missings$test==1])^2))    # should be 0
+  print("Mean Squared Error (Missing):")
+  print(mean((xhat[Missings$test==0] - datas$test[Missings$test==0])^2))
+
+  # Imputation metrics
+
+  imputation_metrics=NRMSE(x=datas$test, xhat=xhat, Missing=Missings$test)
+  #imputation_metrics=NRMSE(x=xfull, xhat=xhat, Missing=Missings$test)
+
+  # Other metrics (names aren't consistent)
+  #LB=fit$LB; time=fit$time
+
+  # # Clustering (no classes right now. commented out)
+  # # Average the Z across the #imputation weights L
+  # z_split = split(as.data.frame(fit$zgivenx_flat),rep(1:fit$opt_params$L,each=nrow(datas$test)))
+  # z_mean = Reduce(`+`, z_split) / length(z_split)
+  # #PCA, etc. not coded yet
+
+  #results = c(unlist(imputation_metrics),LB,time)
+  #names(results)[(length(results)-1):length(results)]=c("LB","time")
+  results = c(unlist(imputation_metrics))
+  return(list(fit=fit,results=results,call=call_name))
+}
+
 processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MAR","MNAR"),miss_pct=c(15,25,35),
                             methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
                             imputation_metric=c("MSE","NRMSE","L1","L2"), arch=NULL, rdeponz=NULL, outfile=NULL){
@@ -60,7 +154,7 @@ processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MA
       data.file.name=sprintf("%s/data_%s_%d.RData",dir_name,mechanisms[i],miss_pct[ii])
       file.name = output_file.name(dir_name=dir_name,method=methods[j], mechanism=mechanisms[i],
                                    miss_pct=miss_pct[ii], arch=arch, rdeponz=rdeponz)
-      list_res[[index]]=toy_process(data.file.name,file.name,methods[j])
+      list_res[[index]]=process_results(data.file.name,file.name,methods[j])
       params[[index]]=c(methods[j],mechanisms[i],miss_pct[ii])
       names(params[[index]])=c("method","mechanism","miss_pct")
       index = index+1
@@ -143,7 +237,7 @@ saveFigures = function(datasets=c("SIM1","SIM2","SIM3"), sim_index=1:5, phi0=5,
 tabulate_UCI=function(datasets=c("RED","CONCRETE","BREAST","BANKNOTE","WHITE","YEAST","IRIS",
                                  "HEPMASS","GAS","POWER","MINIBOONE"),
                       mechanisms=c("MCAR","MAR","MNAR"),miss_pct=c(25),
-                      methods=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),phi0=5,sim_index=1,
+                      methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),phi0=5,sim_index=1,
                       arch=NULL, rdeponz=NULL){
   # return df with columns: dataset, method, mechanism, and value (NRMSE, L1, L2, MSE, or RMSE. choose here)
   nvals = length(datasets)*length(mechanisms)*length(miss_pct)*length(methods)*length(sim_index)
@@ -164,7 +258,7 @@ tabulate_UCI=function(datasets=c("RED","CONCRETE","BREAST","BANKNOTE","WHITE","Y
     print(data.file.name)
     print(file.name)
     if(file.exists(file.name)){
-      res = toy_process(data.file.name,file.name,method0)$results   # returns unlist(list(MSE=MSE,RMSE=RMSE,NRMSE=NRMSE,L1=L1,L2=L2))
+      res = process_results(data.file.name,file.name,method0)$results   # returns unlist(list(MSE=MSE,RMSE=RMSE,NRMSE=NRMSE,L1=L1,L2=L2))
       df[index,6:10] = res
     } else{ df[index,6:10] = NA }
     index = index + 1
