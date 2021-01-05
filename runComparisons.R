@@ -79,7 +79,7 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
 
         setwd("predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0")
 
-        ## run alistair_preprocessing.py
+        ## run alistair et al pre-processing --> break down into first/last/median/...
         print("Processing data...")
         source_python("../alistair_preprocessing.py")
 
@@ -87,6 +87,27 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
         if(!file.exists("PhysionetChallenge2012-set-a.csv")){ process_Alistair('set-a') }
         if(!file.exists("PhysionetChallenge2012-set-b.csv")){ process_Alistair('set-b') }
         if(!file.exists("PhysionetChallenge2012-set-c.csv")){ process_Alistair('set-c') }
+
+        ## read-in pre-processed data
+        ## filter to just Median or last observed value
+        d1 = read.csv("PhysionetChallenge2012-set-a.csv")
+        d2 = read.csv("PhysionetChallenge2012-set-b.csv")
+        d3 = read.csv("PhysionetChallenge2012-set-c.csv")
+        library(dplyr)
+        features = c('recordid','SAPS.I','SOFA','Length_of_stay','Survival','In.hospital_death',
+                     'Age','Gender','Height','Weight','CCU','CSRU','SICU',
+                     'DiasABP_median','GCS_median','Glucose_median','HR_median','MAP_median','NIDiasABP_median',
+                     'NIMAP_median','NISysABP_median','RespRate_median','SaO2_median','Temp_median',
+                     'ALP_last','ALT_last','AST_last','Albumin_last','BUN_last','Bilirubin_last',
+                     'Cholesterol_last','Creatinine_last','FiO2_last','HCO3_last','HCT_last','K_last',
+                     'Lactate_last','Mg_last','Na_last','PaCO2_last','PaO2_last','Platelets_last',
+                     'SysABP_last','TroponinI_last','TroponinT_last','WBC_last','Weight_last','pH_last',
+                     'MechVentStartTime','MechVentDuration','MechVentLast8Hour','UrineOutputSum')
+
+        ## save filtered data
+        d1 %>% select(features) %>% write.csv("PhysionetChallenge2012-set-a.csv", row.names=FALSE)
+        d2 %>% select(features) %>% write.csv("PhysionetChallenge2012-set-b.csv", row.names=FALSE)
+        d3 %>% select(features) %>% write.csv("PhysionetChallenge2012-set-c.csv", row.names=FALSE)
 
       } else{
         setwd("data/predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0")
