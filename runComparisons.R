@@ -79,6 +79,52 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
 
         setwd("predicting-mortality-of-icu-patients-the-physionet-computing-in-cardiology-challenge-2012-1.0.0")
 
+        ###########################################################################
+        # Creating Table 1 (done first time runComparisons.R is run)
+        library(reticulate)
+        np <- import("numpy")
+
+        features = c('ALP','ALT','AST','Albumin','BUN','Bilirubin',
+                     'Cholesterol','Creatinine','DiasABP','FiO2','GCS',
+                     'Glucose','HCO3','HCT','HR','K','Lactate','MAP', 'MechVent',
+                     'Mg','NIDiasABP','NIMAP','NISysABP','Na','PaCO2',
+                     'PaO2','Platelets','RespRate','SaO2','SysABP','Temp',
+                     'TroponinI','TroponinT','Urine','WBC','pH')
+
+        npz_trainval <- np$load("data_train_val.npz")
+        npz_test <- np$load("data_test.npz")
+        d_train = npz_trainval$f$x_train; d_val = npz_trainval$f$x_val; d_test = npz_test$f$x_test
+        M_train = npz_trainval$f$m_train; M_val = npz_trainval$f$m_val; M_test = npz_test$f$m_test
+
+        library(abind)
+        d3=abind(d_train, d_val, d_test, along = 1)
+        M3=abind(M_train, M_val, M_test, along = 1)
+
+        d3=aperm(d3, c(2,1,3)); M3=aperm(M3,c(2,1,3))
+        d = matrix(d3, nrow=dim(d3)[1]*dim(d3)[2], ncol=dim(d3)[3])
+        M = 1-matrix(M3, nrow=dim(M3)[1]*dim(M3)[2], ncol=dim(M3)[3])
+        colnames(d) = features; colnames(M) = features
+
+        nobs = rep(NA,ncol(d)); n1obs = rep(NA,ncol(d))
+        for(c in 1:ncol(d)){
+          nobs[c] = sum(M[,c]==1) #; n1obs[c] = any(M[,c]==1)   # n1obs: number of subjects with at least one non-missing obs for each feature
+          nonmiss = rep(NA,nrow(M)/48) # number of obs with at least 1 nonmissing entry for feature c
+          for(b in 1:(nrow(M)/48)){
+            nonmiss[b] = any(M[(b-1)*48+(1:48) , c]==1)
+          }
+          n1obs[c] = sum(nonmiss)
+        }
+
+        ## for table in data section of P2 paper: feature, %missing, %(subjects with at least one nonmissing entry)
+        tab1 = cbind(features,1-nobs/nrow(d),n1obs/(nrow(d)/48))
+        colnames(tab1)[2:3] = c("\\% Missingness", "Patients with $\\geq 1$ measurements")
+        tab1[,2] = format(as.numeric(tab1[,2]),digits=2); tab1[,3] = format(as.numeric(tab1[,3]),digits=2)
+
+        save(tab1,file="Tab1.out")
+        ############################################################################
+
+
+
         ## run alistair et al pre-processing --> break down into first/last/median/...
         print("Processing data...")
         source_python("../alistair_preprocessing.py")

@@ -245,7 +245,7 @@ Check all that apply
 <!--
 Describe how to use the materials provided to reproduce analyses in the manuscript. Additional details can be provided in file(s) accompanying the reproducibility materials.
 -->
-Run `runComparisons.R` script to train all models (time-consuming). Then, run `SummarizeResults.R` script to reproduce Figures 2 and 3, and the results in Table 2.
+Run `runComparisons.R` script to train all models (time-consuming). Then, run `SummarizeResults.R` script to reproduce Figures 2 and 3, and the results in Tables 2 and 3. Figure 1 was created manually by hand, and Table 1 is created the first time `runComparisons.R` is run (saved into the data/physionet... subdirectory)
 
 ### Expected run-time
 
