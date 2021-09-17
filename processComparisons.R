@@ -46,7 +46,7 @@ overlap_hists=function(x1,x2,x3=NULL,lab1="Truth",lab2="Imputed",lab3="...",
   print(p)
 }
 
-output_file.name=function(dir_name,method=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
+output_file.name=function(dir_name,method=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE"),
                           mechanism,miss_pct,arch,rdeponz){
   if(method=="NIMIWAE"){
     yesrdeponz = if(rdeponz){"rzT"}else{"rzF"}
@@ -65,14 +65,22 @@ output_file.name=function(dir_name,method=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","
   return(file.name)
 }
 
-process_results=function(data.file.name, file.name, method=c("MIWAE","IMIWAE","NIMIWAE","HIVAE","VAEAC","MEAN","MF")){
+process_results=function(data.file.name, file.name, method=c("MIWAE","IMIWAE","NIMIWAE","HIVAE","VAEAC","MEAN","MF","MICE")){
   call_name=match.call()
 
   # load data and split into training/valid/test sets
   load(data.file.name)
   datas = split(data.frame(data), g)        # split by $train, $test, and $valid
   Missings = split(data.frame(Missing), g)
-  probs_Missing = split(data.frame(prob_Missing),g)
+
+  if(grepl("TOY", data.file.name) | grepl("SIM",data.file.name)){
+    classes = fit_data$classes
+  }
+  classess = split(classes,g)
+  if(is.null(datas$test)){
+    datas$test = datas$train; Missings$test = Missings$train; classess$test = classess$train     # if no test split (no custom split) --> train set is test set
+  }
+
   norm_means=colMeans(datas$train); norm_sds=apply(datas$train,2,sd)
 
   # MIWAE and NIMIWAE only
@@ -83,7 +91,8 @@ process_results=function(data.file.name, file.name, method=c("MIWAE","IMIWAE","N
 
   #xhat=reverse_norm_MIWAE(fit$xhat,norm_means,norm_sds)   # already reversed
   if(method %in% c("MIWAE","NIMIWAE","IMIWAE")){
-    xhat=fit$xhat_rev
+    # xhat=fit$xhat_rev
+    xhat=fit$xhat
   }else if(method =="HIVAE"){
     xhat=fit$data_reconstructed
   }else if(method=="VAEAC"){
@@ -102,6 +111,27 @@ process_results=function(data.file.name, file.name, method=c("MIWAE","IMIWAE","N
     # xhat = fit$xhat_rev
     if(is.null(fit$xhat_rev)){fit$xhat_rev = reverse_norm_MIWAE(fit$xhat_mf,norm_means,norm_sds)}
     xhat = fit$xhat_rev
+  }else if(method=="MICE"){
+    # library(mice)
+    # miss_ids = apply(Missings$test, 2, mean)!=1   # not fully observed ids
+    # fit$imp[miss_ids]
+    #
+    # xhat = fit$xhat
+    # imp_values = sapply(fit$imp, rowMeans)  ### imputed values averaged across MI's: all cols
+    #
+    # for(c in 1:length(miss_ids)){
+    #   if(miss_ids[c]){ xhat[Missings$test[,c]==0,c] = imp_values[[c]]
+    #   } else{next}
+    # }
+
+    # list_xhats = list()
+    # for(ii in 1:res_MICE$m){   # default at m=5 imputations by mice
+    #   list_xhats[[ii]] = complete(fit,ii)
+    # }
+    #
+    # xhat = Reduce("+", list_xhats)/length(list_xhats)
+
+    xhat=fit$xhat
   }
 
   # check same xhat:
@@ -115,23 +145,36 @@ process_results=function(data.file.name, file.name, method=c("MIWAE","IMIWAE","N
   imputation_metrics=NRMSE(x=datas$test, xhat=xhat, Missing=Missings$test)
   #imputation_metrics=NRMSE(x=xfull, xhat=xhat, Missing=Missings$test)
 
-  # Other metrics (names aren't consistent)
-  #LB=fit$LB; time=fit$time
+  predict_classes = function(X_train, y_train, X_test, y_test, family="binomial"){
+    if(family=="binomial"){
+      # logistic regression --> y_train and y_test have to be factors
+      y_train = as.factor(y_train)
+      y_test = as.factor(y_test)
+    }
+    data_train = data.frame(cbind(X_train, y_train))
+    fit = glm(y_train ~ 1 + X_train, family=family)
+    y_predicted = predict.glm(fit, newdata=data.frame(X_test))
 
-  # # Clustering (no classes right now. commented out)
-  # # Average the Z across the #imputation weights L
-  # z_split = split(as.data.frame(fit$zgivenx_flat),rep(1:fit$opt_params$L,each=nrow(datas$test)))
-  # z_mean = Reduce(`+`, z_split) / length(z_split)
-  # #PCA, etc. not coded yet
+    return(list(fit_train = fit, y_predicted = y_predicted,
+                acc = mean(y_predicted==y_test)))
+  }
+  ratio = 0.8; n_train = floor(ratio*nrow(xhat)); n_test = nrow(xhat) - n_train
+  idx = c( rep(T, n_train) , rep(F, n_test) )
 
-  #results = c(unlist(imputation_metrics),LB,time)
-  #names(results)[(length(results)-1):length(results)]=c("LB","time")
+  fit_pred_imputed = predict_classes(X_train=as.matrix(xhat[idx,]), y_train=classess$test[idx], X_test=as.matrix(xhat[!idx,]), y_test=classess$test[!idx])
+  fit_pred_true = predict_classes(X_train=as.matrix(datas$test[idx,]), y_train=classess$test[idx], X_test=as.matrix(datas$test[!idx,]), y_test=classess$test[!idx])
+
+  fits_pred = list(imputed = fit_pred_imputed,
+                   true = fit_pred_true)
+  fit$fits_pred = fits_pred
+
+
   results = c(unlist(imputation_metrics))
   return(list(fit=fit,results=results,call=call_name))
 }
 
 processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MAR","MNAR"),miss_pct=c(15,25,35),
-                            methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),
+                            methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE"),
                             imputation_metric=c("MSE","NRMSE","L1","L2"), arch=NULL, rdeponz=NULL, outfile=NULL){
   library(ggplot2)
   library(grid)
@@ -214,7 +257,7 @@ processComparisons=function(dir_name="Results/SIM1/phi5",mechanisms=c("MCAR","MA
 }
 
 saveFigures = function(datasets=c("SIM1","SIM2","SIM3"), sim_index=1:5, phi0=5,
-                       mechanisms=c("MCAR","MAR","MNAR"), miss_pcts=c(15,25,35), methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF"),test_dir="",
+                       mechanisms=c("MCAR","MAR","MNAR"), miss_pcts=c(15,25,35), methods=c("IMIWAE","NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE"),test_dir="",
                        outfile=NULL){
   list_res=list(); index=1
   for(s in 1:length(sim_index)){
@@ -290,7 +333,6 @@ summarize_Physionet = function(prefix="",mechanism="MNAR",miss_pct=NA,dataset="P
   Missings = split(data.frame(Missing), g)
   Missings$test = Missing
 
-  # probs_Missing = split(data.frame(prob_Missing),g)
   norm_means=colMeans(datas$train); norm_sds=apply(datas$train,2,sd)
 
   load(sprintf("%s/res_NIMIWAE_%s_%d_IWAE_rzF_ignorable.RData",dir_name,mechanism,miss_pct))
