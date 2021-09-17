@@ -1,0 +1,50 @@
+TensorFlow 2.0 Upgrade Script
+-----------------------------
+Converted 1 files
+Detected 5 issues that require attention
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+File: loglik_models_missing_normalize.py
+--------------------------------------------------------------------------------
+loglik_models_missing_normalize.py:53:24: ERROR: Using member tf.contrib.distributions.Normal in deprecated module tf.contrib. tf.contrib.distributions.Normal cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+loglik_models_missing_normalize.py:87:48: ERROR: Using member tf.contrib.distributions.Normal in deprecated module tf.contrib. tf.contrib.distributions.Normal cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+loglik_models_missing_normalize.py:107:35: ERROR: Using member tf.contrib.distributions.Categorical in deprecated module tf.contrib. tf.contrib.distributions.Categorical cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+loglik_models_missing_normalize.py:139:43: ERROR: Using member tf.contrib.distributions.Categorical in deprecated module tf.contrib. tf.contrib.distributions.Categorical cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+loglik_models_missing_normalize.py:160:24: ERROR: Using member tf.contrib.distributions.Poisson in deprecated module tf.contrib. tf.contrib.distributions.Poisson cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+================================================================================
+Detailed log follows:
+
+================================================================================
+--------------------------------------------------------------------------------
+Processing file 'loglik_models_missing_normalize.py'
+ outputting to 'loglik_models_missing_normalize_v2.py'
+--------------------------------------------------------------------------------
+
+46:21: INFO: Added keywords to args of function 'tf.reduce_sum'
+46:35: INFO: Renamed 'tf.squared_difference' to 'tf.math.squared_difference'
+46:111: INFO: Renamed 'tf.log' to 'tf.math.log'
+46:133: INFO: Added keywords to args of function 'tf.reduce_sum'
+46:147: INFO: Renamed 'tf.log' to 'tf.math.log'
+53:24: ERROR: Using member tf.contrib.distributions.Normal in deprecated module tf.contrib. tf.contrib.distributions.Normal cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+69:15: INFO: Renamed 'tf.log' to 'tf.math.log'
+81:21: INFO: Added keywords to args of function 'tf.reduce_sum'
+81:35: INFO: Renamed 'tf.squared_difference' to 'tf.math.squared_difference'
+82:14: INFO: Added keywords to args of function 'tf.reduce_sum'
+82:28: INFO: Renamed 'tf.log' to 'tf.math.log'
+82:57: INFO: Added keywords to args of function 'tf.reduce_sum'
+87:48: ERROR: Using member tf.contrib.distributions.Normal in deprecated module tf.contrib. tf.contrib.distributions.Normal cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+102:15: INFO: Changing labels arg of tf.nn.softmax_cross_entropy_with_logits to tf.stop_gradient(labels). Please check this transformation.
+
+107:35: ERROR: Using member tf.contrib.distributions.Categorical in deprecated module tf.contrib. tf.contrib.distributions.Categorical cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+119:17: INFO: Added keywords to args of function 'tf.shape'
+131:29: INFO: Added keywords to args of function 'tf.reduce_sum'
+134:15: INFO: Changing labels arg of tf.nn.softmax_cross_entropy_with_logits to tf.stop_gradient(labels). Please check this transformation.
+
+134:62: INFO: Renamed 'tf.log' to 'tf.math.log'
+139:43: ERROR: Using member tf.contrib.distributions.Categorical in deprecated module tf.contrib. tf.contrib.distributions.Categorical cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+139:87: INFO: Renamed 'tf.log' to 'tf.math.log'
+155:15: INFO: Added keywords to args of function 'tf.reduce_sum'
+155:75: INFO: Renamed 'tf.log' to 'tf.math.log'
+160:24: ERROR: Using member tf.contrib.distributions.Poisson in deprecated module tf.contrib. tf.contrib.distributions.Poisson cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+--------------------------------------------------------------------------------
+
