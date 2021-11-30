@@ -36,7 +36,7 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     if(grepl("SIM",dataset)){
       fit_data = NIMIWAE::simulate_data( N=sim_params$N, D=sim_params$D, P=sim_params$P, sim_index=sim_index, seed = 9*sim_index, ratio=c(8,2), nonlinear=nonlinear )
       data=fit_data$data; classes=fit_data$classes
-    } else if(grepl("Physionet",dataset)){ fit_data = NIMIWAE::read_data( dataset=dataset, ratio=c(8,2) ); data=fit_data$data; classes=fit_data$classes }
+    } else{ fit_data = NIMIWAE::read_data( dataset=dataset, ratio=c(8,2) ); data=fit_data$data; classes=fit_data$classes }
     if(is.null(phis)){set.seed(222); phis=rlnorm(p,log(phi_0),0.2)}else if(length(phis)==1){phis=rep(phis,p)}
     if(is.null(phi_z)){phi_z=phis[1]/length(unique(classes))} # set dependence on class as phi/#classes (deprecated.)
 
