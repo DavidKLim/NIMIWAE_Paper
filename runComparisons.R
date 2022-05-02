@@ -5,10 +5,10 @@ source_python("otherMethods.py")
 runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_cols=NULL, ref_cols=NULL, scheme="UV",
                           sim_params=list(N=1e5, D=1, P=2, seed = NULL),
                           dataset=c("Physionet","HEPMASS","POWER","GAS","IRIS","RED","WHITE","YEAST","BREAST","CONCRETE","BANKNOTE",
-                                    "SIM"),
+                                    "SIM1","SIM2"),
                           save.folder=dataset, save.dir=".",
-                          run_method=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE"),phi_0=5,sim_index=1,
-                          rdeponz = c(F), arch = c("IWAE"), ignorable=F, n_imputations=25){
+                          run_method=c("NIMIWAE","IMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE"),phi_0=5,sim_index=1,
+                          rdeponz = c(F), arch = c("IWAE"), n_imputations=25, init0="orthogonal", init_r="orthogonal", init="default"){
   np = import('numpy',convert=FALSE)
   source("processComparisons.R")
 
@@ -264,7 +264,13 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
   diag_dir_name = sprintf("%s/Diagnostics",dir_name)
   ifelse(!dir.exists(diag_dir_name),dir.create(diag_dir_name),FALSE)
   #### NIMIWAE ####
-  if(grepl("^NIMIWAE",run_method)){
+  bs=if(grepl("HEPMASS",dataset) | grepl("POWER",dataset) | (grepl("SIM",dataset) & sim_params$N==1e5)){10000}else if(grepl("BANKNOTE|CONCRETE|ADULT|RED",dataset)){200}else{1000}
+  dim_z=if(grepl("SIM",dataset) | grepl("Physionet",dataset)){ as.integer(c(8L, floor(ncol(data)/4), floor(ncol(data)/2), floor(3*ncol(data)/4)))
+    } else { as.integer(c(floor(ncol(data)/4), floor(ncol(data)/2), floor(3*ncol(data)/4))) }
+
+  if(grepl("IMIWAE",run_method)){
+    if(grepl("^IMIWAE",run_method)){ignorable=T}
+    if(grepl("^NIMIWAE",run_method)){ignorable=F}
     print(run_method)
     covars_r=rep(1,ncol(data))
     # Fixed:
@@ -281,8 +287,10 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     # dir_name2=sprintf("%s",dir_name)
     # ifelse(!dir.exists(dir_name2),dir.create(dir_name2),FALSE)
 
-    dir_name2=if(ignorable){ sprintf("%s/Ignorable",dir_name) }else{ sprintf("%s",dir_name) }
-    ifelse(!dir.exists(dir_name2),dir.create(dir_name2),FALSE)
+    if(init=="default"){NIM_pref=""}else if(init=="alt"){NIM_pref="/alt_init"}
+
+    dir_name2=if(ignorable){ sprintf("%s/Ignorable",dir_name) }else{ sprintf("%s%s",dir_name, NIM_pref) }
+    ifelse(!dir.exists(dir_name2),dir.create(dir_name2, recursive=T),FALSE)
 
     if(grepl("_sup", run_method)){ dir_name3 = sprintf("%s/%s_sup/miss%d",dir_name2,mechanism,miss_pct)
     } else{ dir_name3 = sprintf("%s/%s_unsup/miss%d",dir_name2,mechanism,miss_pct) }
@@ -290,23 +298,20 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
 
     yesrz = if(rdeponz){"T"}else{"F"}
 
-    if(ignorable){
-      fname0=sprintf("%s/res_NIMIWAE_%s_%d_%s_rz%s_ignorable.RData",dir_name2,mechanism,miss_pct,arch,yesrz)
-    }else{
-      fname0=sprintf("%s/res_NIMIWAE_%s_%d_%s_rz%s.RData",dir_name2,mechanism,miss_pct,arch,yesrz)
-    }
-
+    fname0=sprintf("%s/res_NIMIWAE_%s_%d_%s_rz%s.RData",dir_name2,mechanism,miss_pct,arch,yesrz)
     print(fname0)
     if(!file.exists(fname0)){
       t0=Sys.time()
 
-      bs=if(grepl("HEPMASS",dataset) | grepl("SIM",dataset)){10000}else if(grepl("BANKNOTE|WINE|BREAST|YEAST|CONCRETE|ADULT|RED",dataset)){200}else if(grepl("POWER",dataset)){2000}else{1000}
-      if(grepl("Nonlinear",toupper(dataset))){ n_hidden_layers=c(1L,2L); n_hidden_layers_r0=c(1L,2L,0L)
-      }else{ n_hidden_layers=c(0L,1L,2L); n_hidden_layers_r0=c(0L,1L) }
-      lr=if(grepl("Nonlinear",toupper(dataset))){ c(0.001, 0.01) }else{ c(0.01,0.001) }; dim_z=as.integer(c(floor(ncol(data)/2),floor(ncol(data)/4)))
-      h=c(128L,64L); niw = as.integer(n_imputations*10); n_imputations_per_Z=1L; n_epochs=2002L
 
-      hyperparameters = list(sigma="elu", h=h, n_hidden_layers=n_hidden_layers, n_hidden_layers_r0=n_hidden_layers_r0,
+      # if(grepl("Nonlinear",toupper(dataset))){ n_hidden_layers=c(1L,2L); n_hidden_layers_r0=c(1L,2L,0L)
+      # }else{ n_hidden_layers=c(0L,1L,2L); n_hidden_layers_r0=c(0L,1L) }
+      n_hidden_layers=c(0L,1L,2L); if(grepl("Physionet",dataset)){ n_hidden_layers_r0=c(0L,1L,2L) }else{ n_hidden_layers_r0=c(0L,1L) }
+      lr=c(0.001, 0.01)
+      h=c(128L,64L); hr = c(16L, 32L)
+      niw = as.integer(n_imputations*10); n_imputations_per_Z=1L; n_epochs=2002L
+
+      hyperparameters = list(sigma="elu", h=h, h_r=h_r, n_hidden_layers=n_hidden_layers, n_hidden_layers_r0=n_hidden_layers_r0,
                              bs=bs, lr=lr, dim_z=dim_z, #dim_z=4L, ## or 8, 16, 32?
                              niw = niw, n_imputations=n_imputations_per_Z, n_epochs=n_epochs)
 
@@ -319,7 +324,8 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
                                     rdeponz=rdeponz, learn_r=learn_r, data_types=data_types,
                                     phi0=phi0,phi=phi, covars_r=covars_r,
                                     arch=arch, ignorable=ignorable,
-                                    hyperparameters=hyperparameters, dir_name=dir_name, save_imps=save_imps, normalize=normalize)
+                                    hyperparameters=hyperparameters, dir_name=dir_name, save_imps=save_imps, normalize=normalize,
+                                    init0=init0, init_r=init_r, init=init)
 
       res_NIMIWAE$time = as.numeric(Sys.time()-t0,units="secs")
       print(paste("Time elapsed: ", res_NIMIWAE$time, "s."))
@@ -353,7 +359,7 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
       res_MIWAE = NIMIWAE::tuneHyperparams(FUN=run_MIWAE,dataset=dataset,method="MIWAE",data=data,Missing=Missing,g=g,
                                   rdeponz=rdeponz, learn_r=learn_r,
                                   phi0=phi0,phi=phi,
-                                  covars_r=covars_r)
+                                  covars_r=covars_r, bs=bs, dim_z=dim_z)
       res_MIWAE$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_MIWAE,file=sprintf("%s",fname0))
       #rm("res_MIWAE")
@@ -419,7 +425,7 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     if(!file.exists(fname0)){
       t0=Sys.time()
       res_HIVAE = NIMIWAE::tuneHyperparams(FUN=run_HIVAE,dataset=dataset,method="HIVAE",data=data,Missing=Missing,g=g,
-                                  data_types=data_types,dir_name=dir_name2)
+                                  data_types=data_types,dir_name=dir_name2, bs=bs, dim_z=dim_z)
       res_HIVAE$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_HIVAE,file=sprintf("%s",fname0))
       #rm("res_HIVAE")
@@ -448,7 +454,7 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
     if(!file.exists(fname0)){
       t0=Sys.time()
       res_VAEAC = NIMIWAE::tuneHyperparams(FUN=run_VAEAC,dataset=dataset,method="VAEAC",data=data,Missing=Missing,g=g,
-                                  one_hot_max_sizes=one_hot_max_sizes, MissingDatas=MissingDatas, dir_name=dir_name2)
+                                  one_hot_max_sizes=one_hot_max_sizes, MissingDatas=MissingDatas, dir_name=dir_name2, bs=bs, dim_z=dim_z)
       res_VAEAC$time=as.numeric(Sys.time()-t0,units="secs")
       save(res_VAEAC,file=sprintf("%s",fname0))
       #rm("res_VAEAC")
@@ -569,69 +575,76 @@ runComparisons = function(mechanism=c("MCAR","MAR","MNAR"), miss_pct=25, miss_co
 
 ifelse(!dir.exists("./Results"), dir.create("./Results",recursive=T), F)
 mechanisms=c("MCAR","MAR","MNAR")
-run_methods=c("NIMIWAE_sup","NIMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE_sup","MICE_unsup")
+# run_methods=c("NIMIWAE_sup","NIMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE_sup","MICE_unsup")
+run_methods=c("NIMIWAE_unsup", "IMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE_unsup")
 
 # Proof of Concept (fixed miss_pct)
 # for(a in 1:length(mechanisms)){
 #   runComparisons(dataset="SIM", sim_params=list(N=1e5, D=1, P=2, seed=NULL), save.dir="./Results", save.folder="SIM1", mechanism=mechanisms[a])
 # }
 
-# Supplementary simulations (P=8, 5 sims, vary miss_pct), proof of concept
-# sim_indexes=1:5; miss_pcts = c(15,25,35)
-sim_indexes=1; miss_pcts=25
-for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){for(d in 1:length(run_methods)){
-  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=8, seed=NULL), save.dir="./Results",save.folder="SIM1",
-                 mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c],
-                 rdeponz = c(F), arch = c("IWAE"), ignorable=F, run_method=run_methods[d])
-}}}}
+# # Supplementary simulations (P=8, 5 sims, vary miss_pct), proof of concept
+# # sim_indexes=1:5; miss_pcts = c(15,25,35)
+# sim_indexes=1; miss_pcts=25
+# for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){for(d in 1:length(run_methods)){
+#   runComparisons(dataset="SIM", sim_params=list(N=1e5, D=2, P=8, seed=NULL), save.dir="./Results",save.folder="SIM1",
+#                  mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c],
+#                  rdeponz = c(F), arch = c("IWAE"), ignorable=F, run_method=run_methods[d])
+# }}}}
 
 ### Add varying N and varying phi
 
 # UCI datasets (fixed miss_pct)
 datasets=c("BANKNOTE","CONCRETE","RED","WHITE")
 for(a in 1:length(mechanisms)){for(d in 1:length(datasets)){for(e in 1:length(run_methods)){
-  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a],rdeponz = c(F), arch = c("IWAE"),
-                 ignorable=F, run_method=run_methods[e])
-  if(grepl("NIMIWAE",run_methods[e])){
-    runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a],rdeponz = c(F), arch = c("IWAE"),run_method=run_methods[e],
-                 ignorable=T)
-  }
+  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a],
+                 rdeponz = c(F), arch = c("IWAE"), run_method=run_methods[e])
 }}}
 
-run_methods=c("NIMIWAE_sup","NIMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MICE_sup","MICE_unsup")
+# run_methods=c("NIMIWAE_sup","NIMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MICE_sup","MICE_unsup")
+run_methods=c("NIMIWAE_unsup", "IMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE_unsup")   # MF only worked for N=10K, P=25
+# run_methods=c("NIMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MICE_unsup")
 
 # Main simulations (P=100, 5 sims)
-sim_indexes=1:5; miss_pcts = 25; phi_0s = c(1,5,10)
+sim_indexes=1:5; miss_pcts = 15; phi_0s = c(5); Ns=c(1e4, 1e5); Ps=c(25, 100); Ds=c(2, 8)
 for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){for(d in 1:length(run_methods)){for(e in 1:length(phi_0s)){
-  runComparisons(dataset="SIM", sim_params=list(N=1e5, D=25, P=100, seed=NULL), save.dir="./Results",save.folder="SIM2",
+  for(f in 1:length(Ns)){for(g in 1:length(Ps)){for(h in 1:length(Ds)){
+  if(run_methods[d] == "MF"){
+    if(!(Ns[f]==1e4 & Ps==25)){ next }   # skip MF UNLESS n=10K and p=25
+  }
+  runComparisons(dataset="SIM", sim_params=list(N=Ns[f], D=Ds[h], P=Ps[g], seed=NULL), save.dir="./Results",
+                 save.folder=sprintf("SIM_N%d_P%d_D%d", Ns[f], Ps[g], Ds[h]),
                  mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c], phi_0=phi_0s[e],
-                 rdeponz = c(F), arch = c("IWAE"), ignorable=F, run_method=run_methods[d])
-}}}}}
+                 rdeponz = c(F), arch = c("IWAE"), run_method=run_methods[d],
+                 init="default")
+  if(grepl("NIMIWAE",run_methods[d])){
+    runComparisons(dataset="SIM", sim_params=list(N=Ns[f], D=Ds[h], P=Ps[g], seed=NULL), save.dir="./Results",
+                   save.folder=sprintf("SIM_N%d_P%d_D%d", Ns[f], Ps[g], Ds[h]),
+                   mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c], phi_0=phi_0s[e],
+                   rdeponz = c(F), arch = c("IWAE"), run_method=run_methods[d],
+                   init="alt")
+  }
+}}}}}}}}
 
-# Nonlinear simulations
-sim_indexes=1:5; miss_pcts = 25
-for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){for(d in 1:length(run_methods)){
-  runComparisons(dataset="SIM_Nonlinear", sim_params=list(N=1e5, D=25, P=100, seed=NULL), save.dir="./Results",save.folder="SIMNL",
-                 mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c],
-                 rdeponz = c(F), arch = c("IWAE"), ignorable=F, run_method=run_methods[d])
-}}}}
+# # Nonlinear simulations
+# sim_indexes=1:5; miss_pcts = 25
+# for(a in 1:length(mechanisms)){for(b in 1:length(miss_pcts)){for(c in 1:length(sim_indexes)){for(d in 1:length(run_methods)){
+#   runComparisons(dataset="SIM_Nonlinear", sim_params=list(N=1e5, D=25, P=100, seed=NULL), save.dir="./Results",save.folder="SIMNL",
+#                  mechanism=mechanisms[a],miss_pct=miss_pcts[b], sim_index=sim_indexes[c],
+#                  rdeponz = c(F), arch = c("IWAE"), ignorable=F, run_method=run_methods[d])
+# }}}}
 
 datasets=c("HEPMASS","POWER") # large datasets: runs into memory issues with missForest (MF)
 for(a in 1:length(mechanisms)){for(d in 1:length(datasets)){for(e in 1:length(run_methods)){
-  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a], run_method=c("NIMIWAE","MIWAE","HIVAE","VAEAC","MEAN","MICE"),
-                 rdeponz = c(F), arch = c("IWAE"), ignorable=F, run_method=run_methods[e])
-  if(grepl("NIMIWAE",run_methods[e])){
-    runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a], run_method=c("NIMIWAE"),
-                 rdeponz = c(F), arch = c("IWAE"), ignorable=T, run_method=run_methods[e])
-  }
+  runComparisons(dataset=datasets[d], save.dir="./Results",mechanism=mechanisms[a],
+                 run_method=c("NIMIWAE_unsup","IMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MICE_unsup"),
+                 rdeponz = c(F), arch = c("IWAE"),  run_method=run_methods[e])
 }}}
 #### NEED TO INCLUDE IGNORABLE RUN IN PARENTHESES ####
 
 # Physionet analysis
-run_methods=c("NIMIWAE_sup","NIMIWAE_unsup","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE_sup","MICE_unsup")
+run_methods=c("NIMIWAE_sup","NIMIWAE_unsup","IMIWAE_unsup","IMIWAE_sup","MIWAE","HIVAE","VAEAC","MEAN","MF","MICE_sup","MICE_unsup")
 for(a in 1:length(run_methods)){
-  runComparisons(dataset="Physionet", save.dir="./Results",mechanism="MNAR", ignorable=F, run_method=run_methods[a])  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR
-  if(grepl("NIMIWAE",run_methods[a])){
-    runComparisons(dataset="Physionet", save.dir="./Results",miss_pct=NA, mechanism="MNAR", run_method=run_methods[a], ignorable=T)  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR
-  }
+  runComparisons(dataset="Physionet", save.dir="./Results",mechanism="MNAR", miss_pct=NA, phi_0=NA, run_method=run_methods[a], init="default")  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR
+  runComparisons(dataset="Physionet", save.dir="./Results",mechanism="MNAR", miss_pct=NA, phi_0=NA, run_method=run_methods[a], init="alt")  # for Physionet, missingness isn't simulated. Inherent missingness is assumed to be MNAR
 }
